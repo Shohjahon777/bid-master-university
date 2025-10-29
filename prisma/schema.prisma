@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String
+  avatar        String?
+  university    String?
+  verified      Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  auctions      Auction[]
+  wonAuctions   Auction[]      @relation("AuctionWinner")
+  bids          Bid[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Auction {
+  id            String        @id @default(cuid())
+  title         String
+  description   String
+  category      String
+  condition     String
+  images        String[]      @default([])
+  startingPrice Decimal       @db.Decimal(10, 2)
+  currentPrice  Decimal       @db.Decimal(10, 2)
+  buyNowPrice   Decimal?      @db.Decimal(10, 2)
+  startTime     DateTime
+  endTime       DateTime
+  status        AuctionStatus @default(ACTIVE)
+  winnerId      String?
+  userId        String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  winner        User?         @relation("AuctionWinner", fields: [winnerId], references: [id])
+  bids          Bid[]
+
+  @@index([status])
+  @@index([endTime])
+  @@index([category])
+  @@index([userId])
+  @@map("auctions")
+}
+
+model Bid {
+  id        String   @id @default(cuid())
+  amount    Decimal  @db.Decimal(10, 2)
+  userId    String
+  auctionId String
+  createdAt DateTime @default(now())
+  auction   Auction  @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([auctionId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("bids")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  message   String
+  read      Boolean          @default(false)
+  link      String?
+  userId    String
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum AuctionStatus {
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+enum NotificationType {
+  BID_PLACED
+  BID_OUTBID
+  AUCTION_WON
+  AUCTION_ENDED
+  AUCTION_CANCELLED
+  AUCTION_CREATED
+}

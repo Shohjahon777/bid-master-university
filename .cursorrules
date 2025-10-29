@@ -1,0 +1,387 @@
+# Bid Master - Cursor AI Development Rules
+
+## Project Overview
+You are building "Bid Master" - an internal university auction platform where students can list items and bid on auctions. This is a Next.js 15 application with TypeScript, Prisma, Supabase, and Tailwind CSS.
+
+## Tech Stack
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript (strict mode)
+- **Database**: PostgreSQL via Supabase
+- **ORM**: Prisma
+- **Auth**: Supabase Auth
+- **Styling**: Tailwind CSS
+- **UI Components**: Shadcn/ui
+- **Validation**: Zod
+- **Forms**: React Hook Form
+- **Real-time**: Supabase Realtime
+- **File Upload**: Vercel Blob or Cloudinary
+
+## Code Style & Standards
+
+### General Principles
+- Write clean, readable, and maintainable code
+- Use TypeScript for type safety - no `any` types
+- Prefer functional components with hooks
+- Use async/await over promises
+- Handle errors gracefully with try-catch
+- Always validate user inputs
+- Use descriptive variable and function names
+- Add comments for complex logic only
+
+### Next.js 15 Specific
+- Use App Router (not Pages Router)
+- Default to React Server Components (RSC)
+- Use 'use client' only when needed (interactivity, hooks, browser APIs)
+- Use Server Actions for mutations
+- Implement proper loading.tsx and error.tsx
+- Use Suspense for streaming
+- Optimize images with next/image
+- Use metadata API for SEO
+
+### File Naming
+- Components: PascalCase (AuctionCard.tsx)
+- Utilities: kebab-case (format-currency.ts)
+- Server Actions: actions.ts
+- API Routes: route.ts
+- Types: PascalCase interfaces (User, Auction, Bid)
+
+### Component Structure
+```typescript
+// 1. Imports (grouped: react, next, third-party, local)
+import { useState } from 'react'
+import Image from 'next/image'
+import { Button } from '@/components/ui/button'
+import { formatCurrency } from '@/lib/utils'
+
+// 2. Types/Interfaces
+interface AuctionCardProps {
+  auction: Auction
+  onBid?: (id: string) => void
+}
+
+// 3. Component
+export function AuctionCard({ auction, onBid }: AuctionCardProps) {
+  // 4. Hooks (useState, useEffect, custom hooks)
+  const [isLoading, setIsLoading] = useState(false)
+  
+  // 5. Handlers
+  const handleBid = async () => {
+    setIsLoading(true)
+    // logic
+    setIsLoading(false)
+  }
+  
+  // 6. Render
+  return (
+    <div>
+      {/* JSX */}
+    </div>
+  )
+}
+```
+
+### Server Actions Pattern
+```typescript
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { db } from '@/lib/db'
+import { z } from 'zod'
+
+const schema = z.object({
+  title: z.string().min(3),
+  price: z.number().positive()
+})
+
+export async function createAuction(formData: FormData) {
+  // 1. Get user session
+  const user = await getCurrentUser()
+  if (!user) throw new Error('Unauthorized')
+  
+  // 2. Validate input
+  const data = schema.parse({
+    title: formData.get('title'),
+    price: Number(formData.get('price'))
+  })
+  
+  // 3. Database operation
+  const auction = await db.auction.create({
+    data: { ...data, userId: user.id }
+  })
+  
+  // 4. Revalidate
+  revalidatePath('/auctions')
+  
+  // 5. Return result
+  return { success: true, auction }
+}
+```
+
+## Database (Prisma)
+
+### Queries
+- Always use Prisma Client from @/lib/db
+- Use transactions for related operations
+- Include related data with `include` or `select`
+- Use proper error handling
+- Add indexes for performance
+```typescript
+// Good
+const auction = await db.auction.findUnique({
+  where: { id },
+  include: {
+    user: { select: { name: true, avatar: true } },
+    bids: { orderBy: { createdAt: 'desc' }, take: 5 }
+  }
+})
+
+// Bad - N+1 queries
+const auction = await db.auction.findUnique({ where: { id } })
+const user = await db.user.findUnique({ where: { id: auction.userId } })
+```
+
+### Schema Conventions
+- Use camelCase for field names
+- Add @@map for table names (plural, snake_case)
+- Always add createdAt and updatedAt
+- Use proper relations
+- Add indexes for frequently queried fields
+
+## Authentication
+
+### Pattern
+```typescript
+import { supabase } from '@/lib/supabase'
+
+// Get current user (server)
+export async function getCurrentUser() {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  
+  const dbUser = await db.user.findUnique({
+    where: { id: user.id }
+  })
+  return dbUser
+}
+
+// Protect routes
+export default async function ProtectedPage() {
+  const user = await getCurrentUser()
+  if (!user) redirect('/login')
+  
+  return <div>Protected content</div>
+}
+```
+
+## UI/UX Guidelines
+
+### Use Shadcn Components
+- Import from @/components/ui/
+- Customize via Tailwind classes
+- Don't modify component files directly
+
+### Tailwind Best Practices
+- Use design system (spacing, colors)
+- Mobile-first responsive design
+- Use semantic color names (primary, destructive)
+- Avoid arbitrary values unless necessary
+- Group related utilities
+```typescript
+// Good
+<div className="flex items-center gap-4 rounded-lg bg-card p-6">
+
+// Bad
+<div className="flex items-center" style={{ gap: '16px' }}>
+```
+
+### Forms
+- Always use React Hook Form + Zod
+- Show validation errors inline
+- Disable submit during loading
+- Show success/error feedback
+- Implement optimistic updates
+```typescript
+const form = useForm<FormData>({
+  resolver: zodResolver(schema),
+  defaultValues: { title: '', price: 0 }
+})
+
+async function onSubmit(data: FormData) {
+  try {
+    await createAuction(data)
+    toast.success('Auction created!')
+    router.push('/auctions')
+  } catch (error) {
+    toast.error('Failed to create auction')
+  }
+}
+```
+
+## Error Handling
+
+### Client Components
+```typescript
+try {
+  const result = await action()
+  toast.success('Success!')
+} catch (error) {
+  console.error(error)
+  toast.error(error instanceof Error ? error.message : 'Something went wrong')
+}
+```
+
+### Server Actions
+```typescript
+export async function serverAction() {
+  try {
+    // logic
+    return { success: true, data }
+  } catch (error) {
+    console.error('Action failed:', error)
+    return { success: false, error: 'Failed to perform action' }
+  }
+}
+```
+
+## Real-time Features
+
+### Supabase Realtime Pattern
+```typescript
+'use client'
+
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+
+export function BidsList({ auctionId }: { auctionId: string }) {
+  const [bids, setBids] = useState<Bid[]>([])
+  
+  useEffect(() => {
+    // Subscribe to changes
+    const channel = supabase
+      .channel(`auction:${auctionId}`)
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'bids', filter: `auctionId=eq.${auctionId}` },
+        (payload) => {
+          setBids(prev => [payload.new as Bid, ...prev])
+        }
+      )
+      .subscribe()
+    
+    return () => { supabase.removeChannel(channel) }
+  }, [auctionId])
+  
+  return <div>{/* render bids */}</div>
+}
+```
+
+## Performance Optimization
+
+### Image Optimization
+```typescript
+import Image from 'next/image'
+
+<Image
+  src={imageUrl}
+  alt="Auction item"
+  width={400}
+  height={300}
+  className="object-cover"
+  priority={isAboveFold}
+/>
+```
+
+### Data Fetching
+- Use server components for initial data
+- Use React Query for client-side data
+- Implement pagination for large lists
+- Cache expensive operations
+- Use Suspense boundaries
+
+### Loading States
+```typescript
+// app/auctions/loading.tsx
+export default function Loading() {
+  return <AuctionCardSkeleton />
+}
+
+// app/auctions/page.tsx
+export default async function AuctionsPage() {
+  const auctions = await getAuctions()
+  return <AuctionsList auctions={auctions} />
+}
+```
+
+## Security Best Practices
+
+### Input Validation
+- Always validate on server
+- Use Zod schemas
+- Sanitize user input
+- Prevent SQL injection (Prisma handles this)
+
+### Authorization
+- Check user permissions in Server Actions
+- Verify ownership before updates/deletes
+- Use RLS (Row Level Security) in Supabase
+```typescript
+export async function deleteAuction(id: string) {
+  const user = await getCurrentUser()
+  if (!user) throw new Error('Unauthorized')
+  
+  const auction = await db.auction.findUnique({ where: { id } })
+  if (auction?.userId !== user.id) {
+    throw new Error('Forbidden')
+  }
+  
+  await db.auction.delete({ where: { id } })
+}
+```
+
+## Testing Approach
+- Test critical paths manually
+- Use TypeScript for compile-time checks
+- Validate all forms
+- Test error states
+- Test on mobile devices
+
+## Deployment Checklist
+- ✅ Environment variables set
+- ✅ Database migrations applied
+- ✅ Images optimized
+- ✅ Error boundaries added
+- ✅ Loading states implemented
+- ✅ Forms validated
+- ✅ Auth protected routes
+- ✅ Real-time features tested
+
+## Common Pitfalls to Avoid
+- ❌ Using 'use client' unnecessarily
+- ❌ Not handling loading/error states
+- ❌ Forgetting to revalidate after mutations
+- ❌ Not validating server-side
+- ❌ Exposing sensitive data to client
+- ❌ N+1 database queries
+- ❌ Not using TypeScript properly
+- ❌ Hardcoding values (use env vars)
+
+## When to Ask for Clarification
+- Unclear requirements
+- Complex business logic
+- Performance trade-offs
+- Security implications
+- Third-party service integrations
+
+## Response Format
+When generating code:
+1. Explain what you're building briefly
+2. Show the complete, working code
+3. Highlight important decisions
+4. Mention any setup required
+5. Suggest next steps
+
+Always:
+- Write production-ready code
+- Include proper types
+- Add error handling
+- Consider edge cases
+- Follow these rules strictly

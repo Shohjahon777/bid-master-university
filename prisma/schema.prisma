@@ -15,6 +15,14 @@ model User {
   avatar        String?
   university    String?
   verified      Boolean        @default(false)
+  role          UserRole       @default(USER)
+  status        UserStatus     @default(ACTIVE)
+  suspendedAt   DateTime?
+  suspendedUntil DateTime?
+  suspendedReason String?
+  bannedAt      DateTime?
+  bannedUntil   DateTime?
+  bannedReason  String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   auctions      Auction[]
@@ -24,7 +32,11 @@ model User {
   watchlist     Watchlist[]
   conversations ConversationParticipant[]
   sentMessages  Message[]
+  reports       Report[]       @relation("ReportReporter")
+  reportedItems Report[]       @relation("ReportTarget")
 
+  @@index([role])
+  @@index([status])
   @@map("users")
 }
 
@@ -50,10 +62,19 @@ model Auction {
   bids          Bid[]
   watchlist     Watchlist[]
 
+  // Single field indexes
   @@index([status])
   @@index([endTime])
   @@index([category])
   @@index([userId])
+  @@index([createdAt])
+  @@index([currentPrice])
+  @@index([condition])
+  // Composite indexes for common query patterns
+  @@index([status, endTime])
+  @@index([status, category])
+  @@index([status, createdAt])
+  @@index([category, status, endTime])
   @@map("auctions")
 }
 
@@ -159,4 +180,75 @@ enum NotificationType {
   AUCTION_CANCELLED
   AUCTION_CREATED
   MESSAGE
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  type        ReportType
+  targetId    String
+  reporterId  String
+  reason      String
+  description String?      @db.Text
+  status      ReportStatus @default(PENDING)
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  action      String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  reporter    User         @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  target      User         @relation("ReportTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([type])
+  @@index([targetId])
+  @@index([reporterId])
+  @@index([createdAt])
+  @@map("reports")
+}
+
+enum ReportType {
+  AUCTION
+  USER
+  MESSAGE
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+}
+
+model EmailLog {
+  id          String   @id @default(cuid())
+  to          String
+  subject     String
+  type        String
+  status      EmailStatus @default(PENDING)
+  error       String?
+  sentAt      DateTime?
+  createdAt   DateTime   @default(now())
+  userId      String?
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+  @@map("email_logs")
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
 }

@@ -6,6 +6,7 @@ import { requireAuth } from '@/lib/auth'
 import { placeBidSchema, buyNowSchema } from '@/lib/validations/bid'
 import { AuctionStatus, NotificationType } from '@/types'
 import { isAuctionActive } from '@/lib/utils'
+import { sendBidNotification, sendOutbidNotification } from '@/lib/email'
 
 // Helper function to create notifications
 async function createNotifications(tx: any, notifications: Array<{
@@ -103,6 +104,16 @@ export async function placeBid(auctionId: string, amount: number) {
         data: { currentPrice: validatedData.amount }
       })
 
+      // Get users for email notifications
+      const previousBidder = previousHighestBidder && previousHighestBidder !== user.id
+        ? await tx.user.findUnique({ where: { id: previousHighestBidder } })
+        : null
+
+      // Get full auction details for email
+      const fullAuction = await tx.auction.findUnique({
+        where: { id: auctionId }
+      })
+
       // Create notifications
       const notifications = []
 
@@ -127,8 +138,22 @@ export async function placeBid(auctionId: string, amount: number) {
       // Create all notifications
       await createNotifications(tx, notifications)
 
-      return bid
+      return { bid, previousBidder, auction: fullAuction }
     })
+
+    // Send email notifications (fire and forget)
+    if (result.previousBidder && result.auction) {
+      sendOutbidNotification(result.previousBidder, result.auction as any, validatedData.amount).catch((error) => {
+        console.error('Error sending outbid email:', error)
+      })
+    }
+
+    // Send bid notification to current user
+    if (result.auction) {
+      sendBidNotification(user, result.auction as any, validatedData.amount).catch((error) => {
+        console.error('Error sending bid notification email:', error)
+      })
+    }
 
     // Revalidate the auction page
     revalidatePath(`/auctions/${auctionId}`)
@@ -138,9 +163,9 @@ export async function placeBid(auctionId: string, amount: number) {
     return { 
       success: true, 
       bid: {
-        ...result,
-        amount: Number(result.amount),
-        createdAt: result.createdAt.toISOString()
+        ...result.bid,
+        amount: Number(result.bid.amount),
+        createdAt: result.bid.createdAt.toISOString()
       }
     }
   } catch (error) {

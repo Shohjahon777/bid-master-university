@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 import { createNotification } from '@/lib/notifications'
 import { NotificationType } from '@prisma/client'
+import { sendNewMessageEmail } from '@/lib/email'
 
 // Get or create conversation between two users
 export async function getOrCreateConversation(otherUserId: string) {
@@ -162,6 +163,15 @@ export async function sendMessage(conversationId: string, content: string) {
         `New message from ${user.name}`,
         `/messages`
       )
+
+      // Send email notification (fire and forget)
+      sendNewMessageEmail(
+        recipient,
+        user.name,
+        result.content.substring(0, 100) // Preview first 100 chars
+      ).catch((error) => {
+        console.error('Error sending message email:', error)
+      })
     }
 
     revalidatePath(`/messages/${conversationId}`)

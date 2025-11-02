@@ -16,8 +16,8 @@ const DurationEnum = z.enum(['1', '3', '7', '14'], {
   message: 'Please select a valid duration'
 })
 
-// Main auction creation schema
-export const createAuctionSchema = z.object({
+// Main auction creation schema base (without refine)
+const createAuctionSchemaBase = z.object({
   title: z
     .string()
     .min(3, 'Title must be at least 3 characters')
@@ -77,7 +77,10 @@ export const createAuctionSchema = z.object({
     ),
   
   duration: DurationEnum
-}).refine(
+})
+
+// Main auction creation schema with validation
+export const createAuctionSchema = createAuctionSchemaBase.refine(
   (data) => {
     // Buy now price must be greater than starting price
     if (data.buyNowPrice && data.buyNowPrice <= data.startingPrice) {
@@ -92,9 +95,21 @@ export const createAuctionSchema = z.object({
 )
 
 // Schema for updating an auction (all fields optional except validation rules)
-export const updateAuctionSchema = createAuctionSchema.partial().extend({
+export const updateAuctionSchema = createAuctionSchemaBase.partial().extend({
   id: z.string().min(1, 'Auction ID is required')
-})
+}).refine(
+  (data) => {
+    // Buy now price must be greater than starting price if both are provided
+    if (data.buyNowPrice && data.startingPrice && data.buyNowPrice <= data.startingPrice) {
+      return false
+    }
+    return true
+  },
+  {
+    message: 'Buy now price must be greater than starting price',
+    path: ['buyNowPrice']
+  }
+)
 
 // Schema for auction search/filtering
 export const auctionSearchSchema = z.object({
@@ -222,15 +237,15 @@ export type CreateBidData = z.infer<typeof createBidSchema>
 export type UpdateAuctionStatusData = z.infer<typeof updateAuctionStatusSchema>
 export type DeleteAuctionData = z.infer<typeof deleteAuctionSchema>
 
-// Export individual field schemas for reuse
-export const titleSchema = createAuctionSchema.shape.title
-export const descriptionSchema = createAuctionSchema.shape.description
-export const categorySchema = createAuctionSchema.shape.category
-export const conditionSchema = createAuctionSchema.shape.condition
+// Export individual field schemas for reuse (use base schema which has .shape property)
+export const titleSchema = createAuctionSchemaBase.shape.title
+export const descriptionSchema = createAuctionSchemaBase.shape.description
+export const categorySchema = createAuctionSchemaBase.shape.category
+export const conditionSchema = createAuctionSchemaBase.shape.condition
 export const imagesSchema = imagesArraySchema
-export const startingPriceSchema = createAuctionSchema.shape.startingPrice
-export const buyNowPriceSchema = createAuctionSchema.shape.buyNowPrice
-export const durationSchema = createAuctionSchema.shape.duration
+export const startingPriceSchema = createAuctionSchemaBase.shape.startingPrice
+export const buyNowPriceSchema = createAuctionSchemaBase.shape.buyNowPrice
+export const durationSchema = createAuctionSchemaBase.shape.duration
 
 // Validation error messages
 export const VALIDATION_MESSAGES = {

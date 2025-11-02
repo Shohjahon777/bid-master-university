@@ -117,6 +117,25 @@ export async function requireAuth(): Promise<AuthUser> {
 }
 
 /**
+ * Require admin role - throw error if not admin
+ * Use in Admin Server Actions
+ */
+export async function requireAdmin(): Promise<AuthUser> {
+  const user = await requireAuth()
+  
+  const dbUser = await db.user.findUnique({
+    where: { id: user.id },
+    select: { role: true }
+  })
+  
+  if (!dbUser || dbUser.role !== 'ADMIN') {
+    throw new Error('Forbidden: Admin access required')
+  }
+  
+  return user
+}
+
+/**
  * Register a new user with Supabase Auth and create User record in database
  */
 export async function signUp({ email, password, name, university }: SignUpData): Promise<{ success: boolean; user?: AuthUser; error?: string }> {

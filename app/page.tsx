@@ -1,3 +1,4 @@
+import { Metadata } from 'next'
 import Link from "next/link";
 import { Suspense } from "react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,36 @@ import { Badge } from "@/components/ui/badge";
 import { Gavel, Users, TrendingUp, Shield, Clock, Zap, CheckCircle, ArrowRight, Star } from "lucide-react";
 import { AuctionCard } from "@/components/auction-card";
 import { getRecentAuctions } from "@/lib/auctions";
+import { generateLocalBusinessSchema } from "@/lib/metadata";
+
+export const metadata: Metadata = {
+  title: "Bid Master - University Auction Platform",
+  description: "Internal university auction platform where students can list items, discover unique finds, and bid on exciting auctions within your campus community. Safe, verified, and built specifically for university communities.",
+  keywords: ["university auction", "campus marketplace", "student auction", "university bidding", "campus trading", "student marketplace"],
+  openGraph: {
+    title: "Bid Master - University Auction Platform",
+    description: "Buy & Sell Within Your Campus. The internal university auction platform where students can list items and bid on auctions.",
+    type: "website",
+    locale: "en_US",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Bid Master University Auction Platform",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Bid Master - University Auction Platform",
+    description: "Buy & Sell Within Your Campus. The internal university auction platform.",
+    images: ["/og-image.png"],
+  },
+  alternates: {
+    canonical: "/",
+  },
+};
 
 // Loading component for recent auctions
 function RecentAuctionsLoading() {
@@ -81,8 +112,19 @@ async function RecentAuctionsSection() {
 }
 
 export default function Home() {
+  // Generate structured data
+  const localBusinessSchema = generateLocalBusinessSchema();
+
   return (
     <>
+      {/* Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(localBusinessSchema),
+        }}
+      />
+
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">

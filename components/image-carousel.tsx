@@ -70,6 +70,8 @@ export function ImageCarousel({ images, title, className }: ImageCarouselProps) 
           className="object-cover"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 60vw, 50vw"
           priority={currentIndex === 0}
+          placeholder="blur"
+          blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
         />
         
         {/* Navigation Arrows */}
@@ -131,6 +133,9 @@ export function ImageCarousel({ images, title, className }: ImageCarouselProps) 
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 25vw, 15vw"
+                loading="lazy"
+                placeholder="blur"
+                blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
               />
             </button>
           ))}

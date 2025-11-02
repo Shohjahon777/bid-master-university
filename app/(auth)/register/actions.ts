@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { sendWelcomeEmail } from '@/lib/email'
 
 // Zod validation schema for registration
 const registerSchema = z.object({
@@ -171,7 +172,12 @@ export async function registerUser(formData: FormData) {
       }
     })
 
-    // 3. Revalidate relevant paths
+    // 3. Send welcome email (don't await to not block registration)
+    sendWelcomeEmail(dbUser).catch((error) => {
+      console.error('Error sending welcome email:', error)
+    })
+
+    // 4. Revalidate relevant paths
     revalidatePath('/')
 
     return { 

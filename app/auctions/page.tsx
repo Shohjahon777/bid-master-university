@@ -3,6 +3,8 @@ import { AuctionFiltersWrapper } from '@/components/auction-filters-wrapper'
 import { AuctionsSearch } from '@/components/auctions-search'
 import { AuctionsList } from '@/components/auctions-list'
 import { getAuctions, getCategories, getConditions } from '@/lib/actions/auctions'
+import { Suspense } from 'react'
+import { AuctionsListSkeleton } from '@/components/skeletons/auctions-list-skeleton'
 
 interface AuctionsPageProps {
   searchParams: Promise<{
@@ -20,8 +22,8 @@ interface AuctionsPageProps {
   }>
 }
 
-export default async function AuctionsPage({ searchParams }: AuctionsPageProps) {
-  // Await searchParams (Next.js 15)
+// Separate component for data fetching to allow Suspense
+async function AuctionsContent({ searchParams }: AuctionsPageProps) {
   const params = await searchParams
   
   // Parse search params
@@ -40,7 +42,7 @@ export default async function AuctionsPage({ searchParams }: AuctionsPageProps) 
     view: params.view || 'grid'
   }
 
-  // Fetch data in parallel
+  // Fetch data in parallel with optimized queries
   const [auctionsData, categories, conditions] = await Promise.all([
     getAuctions(filters),
     getCategories(),
@@ -48,15 +50,7 @@ export default async function AuctionsPage({ searchParams }: AuctionsPageProps) 
   ])
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">All Auctions</h1>
-        <p className="text-muted-foreground">
-          Discover amazing items from fellow students
-        </p>
-      </div>
-
+    <>
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Filters Sidebar */}
         <div className="lg:w-64 flex-shrink-0">
@@ -80,7 +74,24 @@ export default async function AuctionsPage({ searchParams }: AuctionsPageProps) 
           />
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
+export default async function AuctionsPage({ searchParams }: AuctionsPageProps) {
+  return (
+    <div className="container mx-auto px-4 py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">All Auctions</h1>
+        <p className="text-muted-foreground">
+          Discover amazing items from fellow students
+        </p>
+      </div>
+
+      <Suspense fallback={<AuctionsListSkeleton />}>
+        <AuctionsContent searchParams={searchParams} />
+      </Suspense>
+    </div>
+  )
+}

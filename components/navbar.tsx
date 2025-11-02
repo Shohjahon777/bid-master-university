@@ -17,7 +17,7 @@ import {
   Trophy,
   Heart
 } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, lazy, Suspense } from "react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,7 +33,13 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
-import { NotificationDropdown } from "@/components/notification-dropdown"
+
+// Lazy load notification dropdown (heavy component with real-time updates)
+const NotificationDropdown = lazy(() => 
+  import("@/components/notification-dropdown").then(mod => ({ 
+    default: mod.NotificationDropdown 
+  }))
+)
 
 const navigation = [
   { name: "Home", href: "/" },
@@ -115,7 +121,13 @@ export function Navbar() {
             {user ? (
               <>
                 {/* Notifications */}
-                <NotificationDropdown userId={user.id} />
+                <Suspense fallback={
+                  <Button variant="ghost" size="icon" className="h-9 w-9">
+                    <Bell className="h-4 w-4" />
+                  </Button>
+                }>
+                  <NotificationDropdown userId={user.id} />
+                </Suspense>
 
                 {/* Create Auction Button */}
                 <Button asChild size="sm" className="hidden sm:flex">

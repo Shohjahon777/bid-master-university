@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { db } from '@/lib/db'
 
 // Protected routes that require authentication
 const protectedRoutes = [
@@ -9,6 +10,11 @@ const protectedRoutes = [
   '/profile',
   '/notifications',
   '/messages'
+]
+
+// Admin routes that require admin role
+const adminRoutes = [
+  '/admin'
 ]
 
 // Public routes that don't require authentication
@@ -78,6 +84,36 @@ export async function proxy(request: NextRequest) {
   const isPublicRoute = publicRoutes.some(route => 
     pathname === route || pathname.startsWith(route + '/')
   )
+
+  // Check if the current path is an admin route
+  const isAdminRoute = adminRoutes.some(route => 
+    pathname.startsWith(route)
+  )
+
+  // Handle admin routes - require authentication and admin role
+  if (isAdminRoute) {
+    if (!session || !user) {
+      // Redirect to login with return URL
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('redirectTo', pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+    
+    // Check if user has admin role
+    try {
+      const dbUser = await db.user.findUnique({
+        where: { id: user.id }
+      })
+      
+      if (!dbUser || (dbUser as any).role !== 'ADMIN') {
+        // Redirect to dashboard if not admin
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+    } catch (error) {
+      console.error('Error checking admin role:', error)
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
 
   // Handle protected routes
   if (isProtectedRoute) {

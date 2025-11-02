@@ -82,7 +82,7 @@ async function RecentAuctionsSection() {
 
 export default function Home() {
   return (
-    <div className="flex-1">
+    <>
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -258,6 +258,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-    </div>
+    </>
   );
 }

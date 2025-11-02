@@ -1,4 +1,5 @@
 import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase-server'
 import { db } from '@/lib/db'
 import { User } from '@/types'
 import { redirect } from 'next/navigation'
@@ -38,8 +39,11 @@ export interface AuthError {
  */
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
+    // Use server-side client with cookie support
+    const supabaseClient = await createClient()
+    
     // Get user from Supabase Auth
-    const { data: { user: supabaseUser }, error: authError } = await supabase.auth.getUser()
+    const { data: { user: supabaseUser }, error: authError } = await supabaseClient.auth.getUser()
     
     if (authError) {
       console.error('Auth error:', authError)
@@ -51,13 +55,41 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     }
     
     // Fetch user from database
-    const dbUser = await db.user.findUnique({
+    let dbUser = await db.user.findUnique({
       where: { id: supabaseUser.id }
     })
     
+    // If user doesn't exist in database but exists in Auth, create them
     if (!dbUser) {
-      console.error('User not found in database:', supabaseUser.id)
-      return null
+      console.log('User exists in Auth but not in DB, creating user record...', supabaseUser.id)
+      
+      try {
+        // Get user metadata from Supabase Auth
+        const userMetadata = supabaseUser.user_metadata || {}
+        
+        dbUser = await db.user.create({
+          data: {
+            id: supabaseUser.id,
+            email: supabaseUser.email!,
+            name: userMetadata.name || supabaseUser.email?.split('@')[0] || 'User',
+            university: userMetadata.university || null,
+            verified: supabaseUser.email_confirmed_at ? true : false,
+            avatar: userMetadata.avatar || null
+          }
+        })
+        
+        console.log('Successfully created user record in database')
+      } catch (error) {
+        console.error('Error creating user record:', error)
+        // If creation fails (e.g., duplicate key), try to fetch again
+        dbUser = await db.user.findUnique({
+          where: { id: supabaseUser.id }
+        })
+        
+        if (!dbUser) {
+          return null
+        }
+      }
     }
     
     return {

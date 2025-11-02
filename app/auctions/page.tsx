@@ -1,11 +1,11 @@
 import { AuctionCard } from '@/components/auction-card'
-import { AuctionsFilters } from '@/components/auctions-filters'
+import { AuctionFiltersWrapper } from '@/components/auction-filters-wrapper'
 import { AuctionsSearch } from '@/components/auctions-search'
 import { AuctionsList } from '@/components/auctions-list'
 import { getAuctions, getCategories, getConditions } from '@/lib/actions/auctions'
 
 interface AuctionsPageProps {
-  searchParams: {
+  searchParams: Promise<{
     search?: string
     category?: string
     condition?: string
@@ -13,24 +13,31 @@ interface AuctionsPageProps {
     maxPrice?: string
     endingSoon?: string
     buyNowOnly?: string
+    newListings?: string
     sortBy?: string
     page?: string
-  }
+    view?: string
+  }>
 }
 
 export default async function AuctionsPage({ searchParams }: AuctionsPageProps) {
+  // Await searchParams (Next.js 15)
+  const params = await searchParams
+  
   // Parse search params
   const filters = {
-    search: searchParams.search,
-    category: searchParams.category,
-    condition: searchParams.condition,
-    minPrice: searchParams.minPrice ? Number(searchParams.minPrice) : undefined,
-    maxPrice: searchParams.maxPrice ? Number(searchParams.maxPrice) : undefined,
-    endingSoon: searchParams.endingSoon === 'true',
-    buyNowOnly: searchParams.buyNowOnly === 'true',
-    sortBy: (searchParams.sortBy as any) || 'newest',
-    page: searchParams.page ? Number(searchParams.page) : 1,
-    limit: 12
+    search: params.search,
+    category: params.category,
+    condition: params.condition,
+    minPrice: params.minPrice ? Number(params.minPrice) : undefined,
+    maxPrice: params.maxPrice ? Number(params.maxPrice) : undefined,
+    endingSoon: params.endingSoon === 'true',
+    buyNowOnly: params.buyNowOnly === 'true',
+    newListings: params.newListings === 'true',
+    sortBy: (params.sortBy as 'newest' | 'ending-soon' | 'price-asc' | 'price-desc') || 'newest',
+    page: params.page ? Number(params.page) : 1,
+    limit: 12,
+    view: params.view || 'grid'
   }
 
   // Fetch data in parallel
@@ -53,7 +60,7 @@ export default async function AuctionsPage({ searchParams }: AuctionsPageProps) 
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Filters Sidebar */}
         <div className="lg:w-64 flex-shrink-0">
-          <AuctionsFilters
+          <AuctionFiltersWrapper
             categories={categories}
             conditions={conditions}
             currentFilters={filters}

@@ -5,6 +5,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
+import { supabase } from '@/lib/supabase'
+import { uploadMultipleFiles, STORAGE_BUCKETS } from '@/lib/storage'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -72,14 +74,30 @@ const STEPS = [
 type Step = typeof STEPS[number]['id']
 
 export default function CreateAuctionPage() {
+  // All hooks must be called unconditionally
   const [currentStep, setCurrentStep] = useState<Step>(1)
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
   const { user, loading } = useAuth()
+  const form = useForm<CreateAuctionData>({
+    resolver: zodResolver(createAuctionSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      category: AuctionCategory.OTHER,
+      condition: 'Good',
+      startingPrice: 0,
+      buyNowPrice: undefined,
+      duration: '7',
+      images: []
+    }
+  })
+  const watchedValues = form.watch()
 
   // Handle authentication
   useEffect(() => {
@@ -112,22 +130,6 @@ export default function CreateAuctionPage() {
     return null
   }
 
-  const form = useForm<CreateAuctionData>({
-    resolver: zodResolver(createAuctionSchema),
-    defaultValues: {
-      title: '',
-      description: '',
-      category: AuctionCategory.OTHER,
-      condition: 'Good',
-      startingPrice: 0,
-      buyNowPrice: undefined,
-      duration: '7',
-      images: []
-    }
-  })
-
-  const watchedValues = form.watch()
-
   const nextStep = () => {
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1 as Step)
@@ -140,32 +142,48 @@ export default function CreateAuctionPage() {
     }
   }
 
-  const handleImageUpload = (files: File[]) => {
-    // Simulate image upload
+  const handleImageUpload = async (files: File[]) => {
+    // Store uploaded files
+    setUploadedFiles(files)
     setIsUploading(true)
     setUploadProgress(0)
     
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          setIsUploading(false)
-          // Simulate successful upload
-          const newUrls = files.map((_, index) => 
-            `https://example.com/image-${Date.now()}-${index}.jpg`
-          )
-          setUploadedImages(prev => [...prev, ...newUrls])
-          form.setValue('images', [...form.getValues('images'), ...newUrls])
-          return 100
-        }
-        return prev + 20
+    try {
+      // Create blob URLs for immediate preview
+      const blobUrls = files.map(file => URL.createObjectURL(file))
+      
+      setUploadedImages(prev => {
+        const updatedImages = [...prev, ...blobUrls]
+        setTimeout(() => {
+          form.setValue('images', updatedImages)
+        }, 0)
+        return updatedImages
       })
-    }, 200)
+      
+      // Simulate upload progress
+      const interval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval)
+            setIsUploading(false)
+            return 100
+          }
+          return prev + 20
+        })
+      }, 100)
+      
+    } catch (error) {
+      console.error('Error uploading images:', error)
+      toast.error('Failed to upload images')
+      setIsUploading(false)
+    }
   }
 
   const removeImage = (index: number) => {
     const newImages = uploadedImages.filter((_, i) => i !== index)
+    const newFiles = uploadedFiles.filter((_, i) => i !== index)
     setUploadedImages(newImages)
+    setUploadedFiles(newFiles)
     form.setValue('images', newImages)
   }
 
@@ -184,12 +202,33 @@ export default function CreateAuctionPage() {
         formData.append('buyNowPrice', data.buyNowPrice.toString())
       }
       formData.append('duration', data.duration)
-      formData.append('images', JSON.stringify(data.images))
+      formData.append('images', JSON.stringify(['https://placehold.co/600x400?text=Uploading...']))
 
-      // Call server action
+      // Call server action to create auction
       const result = await createAuction(formData)
       
       if (result.success && result.auction) {
+        // Upload images to Supabase Storage after auction creation
+        if (uploadedFiles.length > 0) {
+          try {
+            const uploadResult = await uploadMultipleFiles(
+              STORAGE_BUCKETS.AUCTION_IMAGES,
+              uploadedFiles,
+              `auctions/${result.auction.id}`
+            )
+            
+            if (uploadResult.success && uploadResult.urls) {
+              // Update auction with uploaded image URLs
+              await supabase.from('auctions').update({ images: uploadResult.urls }).eq('id', result.auction.id)
+            } else {
+              console.error('Upload failed:', uploadResult.error)
+            }
+          } catch (uploadError) {
+            console.error('Error uploading images:', uploadError)
+            // Don't fail the whole operation if upload fails
+          }
+        }
+        
         // Show success toast
         toast.success(result.message || 'Auction created successfully!')
         
@@ -276,7 +315,12 @@ export default function CreateAuctionPage() {
 
         {/* Form */}
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+            const firstError = Object.values(errors)[0]
+            if (firstError?.message) {
+              toast.error(String(firstError.message))
+            }
+          })} className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -401,7 +445,7 @@ export default function CreateAuctionPage() {
                         Add 1-5 photos of your item. First photo will be the main image.
                       </p>
                       <FileUpload
-                        files={[]}
+                        files={uploadedFiles}
                         onFilesChange={handleImageUpload}
                         maxFiles={5}
                         maxSize={5}
@@ -492,8 +536,8 @@ export default function CreateAuctionPage() {
                                 step="0.01"
                                 placeholder="0.00"
                                 className="pl-8"
-                                {...field}
-                                onChange={(e) => field.onChange(Number(e.target.value))}
+                                value={field.value || ''}
+                                onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
                               />
                             </div>
                           </FormControl>
@@ -522,7 +566,7 @@ export default function CreateAuctionPage() {
                                 step="0.01"
                                 placeholder="0.00"
                                 className="pl-8"
-                                {...field}
+                                value={field.value || ''}
                                 onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                               />
                             </div>
@@ -616,7 +660,7 @@ export default function CreateAuctionPage() {
                 ) : (
                   <Button
                     type="submit"
-                    disabled={!isStepValid(3) || uploadedImages.length === 0 || isSubmitting}
+                    disabled={!isStepValid(3) || isSubmitting}
                     className="flex items-center gap-2"
                   >
                     {isSubmitting ? (

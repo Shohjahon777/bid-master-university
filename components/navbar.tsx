@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
+import { NotificationDropdown } from "@/components/notification-dropdown"
 
 const navigation = [
   { name: "Home", href: "/" },
@@ -45,20 +46,11 @@ export function Navbar() {
   const router = useRouter()
   const { theme, setTheme } = useTheme()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [unreadNotifications, setUnreadNotifications] = useState(0)
   const { user, loading, signOut } = useAuth()
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark")
   }
-
-  // Mock unread notifications count
-  useEffect(() => {
-    if (user) {
-      // In a real app, you'd fetch this from your database
-      setUnreadNotifications(Math.floor(Math.random() * 5))
-    }
-  }, [user])
 
   const handleLogout = async () => {
     await signOut()
@@ -123,21 +115,11 @@ export function Navbar() {
             {user ? (
               <>
                 {/* Notifications */}
-                <Button variant="ghost" size="icon" className="relative h-9 w-9">
-                  <Bell className="h-4 w-4" />
-                  {unreadNotifications > 0 && (
-                    <Badge 
-                      variant="destructive" 
-                      className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-                    >
-                      {unreadNotifications > 9 ? '9+' : unreadNotifications}
-                    </Badge>
-                  )}
-                </Button>
+                <NotificationDropdown userId={user.id} />
 
                 {/* Create Auction Button */}
                 <Button asChild size="sm" className="hidden sm:flex">
-                  <Link href="/auctions/create">
+                  <Link href="/auctions/new">
                     <Plus className="h-4 w-4 mr-2" />
                     Create Auction
                   </Link>
@@ -171,32 +153,32 @@ export function Navbar() {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href="/profile" className="flex items-center">
+                      <Link href="/dashboard" className="flex items-center">
                         <User className="mr-2 h-4 w-4" />
-                        Profile
+                        Dashboard
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/my-auctions" className="flex items-center">
+                      <Link href="/dashboard/auctions" className="flex items-center">
                         <Gavel className="mr-2 h-4 w-4" />
                         My Auctions
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/my-bids" className="flex items-center">
+                      <Link href="/dashboard/bids" className="flex items-center">
                         <Trophy className="mr-2 h-4 w-4" />
                         My Bids
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/watchlist" className="flex items-center">
+                      <Link href="/dashboard/watchlist" className="flex items-center">
                         <Heart className="mr-2 h-4 w-4" />
                         Watchlist
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href="/settings" className="flex items-center">
+                      <Link href="/dashboard/settings" className="flex items-center">
                         <Settings className="mr-2 h-4 w-4" />
                         Settings
                       </Link>
@@ -285,7 +267,7 @@ export function Navbar() {
                     </div>
                   </div>
                   <Button asChild size="sm" className="w-full">
-                    <Link href="/auctions/create">
+                    <Link href="/auctions/new">
                       <Plus className="h-4 w-4 mr-2" />
                       Create Auction
                     </Link>

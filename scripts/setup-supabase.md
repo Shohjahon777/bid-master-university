@@ -76,8 +76,12 @@ In Supabase Dashboard:
 1. Go to **Authentication** → **Settings**
 2. Configure:
    - **Site URL**: `http://localhost:3000`
-   - **Redirect URLs**: `http://localhost:3000/auth/callback`
-3. Enable email confirmations
+   - **Redirect URLs** (add these URLs):
+     - `http://localhost:3000/auth/callback`
+     - `http://localhost:3000/verify-email`
+   - **Enable email confirmations**: ✅ ON
+3. For production deployment:
+   - Add your production URL to **Redirect URLs** (e.g., `https://yourdomain.com/verify-email`)
 
 ## 7. Test Connection
 

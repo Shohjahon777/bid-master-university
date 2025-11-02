@@ -184,7 +184,9 @@ export function validateImageUrl(url: string): boolean {
       'supabase.com',
       'amazonaws.com',
       'cloudinary.com',
-      'imgur.com'
+      'imgur.com',
+      'placehold.co',
+      'localhost'
     ]
     
     return validDomains.some(domain => urlObj.hostname.includes(domain))

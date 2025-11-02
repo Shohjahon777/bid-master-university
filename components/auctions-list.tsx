@@ -1,9 +1,10 @@
 'use client'
 
+import { useRouter, useSearchParams } from 'next/navigation'
 import { AuctionCard } from '@/components/auction-card'
 import { Button } from '@/components/ui/button'
 import { AuctionWithRelations } from '@/types'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 
 interface AuctionsListProps {
   auctions: AuctionWithRelations[]
@@ -25,11 +26,24 @@ interface AuctionsListProps {
     buyNowOnly?: boolean
     sortBy?: string
     page?: number
+    view?: string
   }
 }
 
 export function AuctionsList({ auctions, pagination, currentFilters }: AuctionsListProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const hasResults = auctions.length > 0
+
+  // Check if any filters are active (excluding page and default sortBy)
+  const hasActiveFilters = Object.entries(currentFilters).some(([key, value]) => {
+    if (key === 'page' || (key === 'sortBy' && value === 'newest')) return false
+    return value !== undefined && value !== '' && value !== false
+  })
+
+  const clearFilters = () => {
+    router.push('/auctions')
+  }
 
   if (!hasResults) {
     return (
@@ -53,33 +67,56 @@ export function AuctionsList({ auctions, pagination, currentFilters }: AuctionsL
         <p className="text-muted-foreground mb-4">
           Try adjusting your filters or search terms
         </p>
-        <Button
-          variant="outline"
-          onClick={() => window.location.href = '/auctions'}
-        >
-          Clear all filters
-        </Button>
+        {hasActiveFilters && (
+          <Button
+            variant="outline"
+            onClick={clearFilters}
+            className="gap-2"
+          >
+            <X className="h-4 w-4" />
+            Clear all filters
+          </Button>
+        )}
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {/* Results Count */}
-      <div className="flex items-center justify-between">
+      {/* Results Count and Clear Filters */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-sm text-muted-foreground">
-          Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
-          {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-          {pagination.total} auctions
+          Showing <span className="font-medium text-foreground">{((pagination.page - 1) * pagination.limit) + 1}</span> to{' '}
+          <span className="font-medium text-foreground">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
+          <span className="font-medium text-foreground">{pagination.total}</span> {pagination.total === 1 ? 'auction' : 'auctions'}
         </p>
+        {hasActiveFilters && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearFilters}
+            className="gap-2"
+          >
+            <X className="h-4 w-4" />
+            Clear filters
+          </Button>
+        )}
       </div>
 
-      {/* Auctions Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {auctions.map((auction) => (
-          <AuctionCard key={auction.id} auction={auction} />
-        ))}
-      </div>
+      {/* Auctions Grid or List */}
+      {currentFilters.view === 'list' ? (
+        <div className="space-y-4">
+          {auctions.map((auction) => (
+            <AuctionCard key={auction.id} auction={auction} view="list" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {auctions.map((auction) => (
+            <AuctionCard key={auction.id} auction={auction} view="grid" />
+          ))}
+        </div>
+      )}
 
       {/* Pagination */}
       {pagination.totalPages > 1 && (
@@ -89,9 +126,9 @@ export function AuctionsList({ auctions, pagination, currentFilters }: AuctionsL
             size="sm"
             disabled={!pagination.hasPrev}
             onClick={() => {
-              const params = new URLSearchParams(window.location.search)
+              const params = new URLSearchParams(searchParams.toString())
               params.set('page', String(pagination.page - 1))
-              window.location.href = `/auctions?${params.toString()}`
+              router.push(`/auctions?${params.toString()}`)
             }}
           >
             <ChevronLeft className="h-4 w-4 mr-1" />
@@ -110,9 +147,9 @@ export function AuctionsList({ auctions, pagination, currentFilters }: AuctionsL
                   size="sm"
                   className="w-8 h-8 p-0"
                   onClick={() => {
-                    const params = new URLSearchParams(window.location.search)
+                    const params = new URLSearchParams(searchParams.toString())
                     params.set('page', String(pageNum))
-                    window.location.href = `/auctions?${params.toString()}`
+                    router.push(`/auctions?${params.toString()}`)
                   }}
                 >
                   {pageNum}
@@ -126,9 +163,9 @@ export function AuctionsList({ auctions, pagination, currentFilters }: AuctionsL
             size="sm"
             disabled={!pagination.hasNext}
             onClick={() => {
-              const params = new URLSearchParams(window.location.search)
+              const params = new URLSearchParams(searchParams.toString())
               params.set('page', String(pagination.page + 1))
-              window.location.href = `/auctions?${params.toString()}`
+              router.push(`/auctions?${params.toString()}`)
             }}
           >
             Next

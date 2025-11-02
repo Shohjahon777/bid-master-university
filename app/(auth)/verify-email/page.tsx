@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { verifyEmail } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
@@ -15,35 +15,30 @@ function VerifyEmailContent() {
   const [error, setError] = useState<string | null>(null)
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
+  const tokenHash = searchParams.get('token_hash')
+  const type = searchParams.get('type')
 
   useEffect(() => {
-    if (token) {
-      handleVerification(token)
-    }
-  }, [token])
-
-  const handleVerification = async (verificationToken: string) => {
-    setIsVerifying(true)
-    setError(null)
-
-    try {
-      const result = await verifyEmail(verificationToken)
-
-      if (result.success) {
+    // Check if we have Supabase auth session (from magic link)
+    const checkSession = async () => {
+      // Give Supabase a moment to process the auth session if coming from email link
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
         setIsVerified(true)
         toast.success('Email verified successfully!')
+      } else if (!token && !tokenHash) {
+        // No token and no session means just viewing the page
+        setIsVerifying(false)
       } else {
-        setError(result.error || 'Verification failed')
-        toast.error(result.error || 'Verification failed')
+        // Have token but no session - could be expired or invalid
+        setError('Verification link expired or invalid. Please request a new verification email.')
       }
-    } catch (error) {
-      console.error('Email verification error:', error)
-      setError('An unexpected error occurred during verification')
-      toast.error('An unexpected error occurred during verification')
-    } finally {
-      setIsVerifying(false)
     }
-  }
+
+    checkSession()
+  }, [token, tokenHash, type])
 
   const resendVerification = async () => {
     toast.info('Verification email sent! Please check your inbox.')

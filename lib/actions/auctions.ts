@@ -21,6 +21,7 @@ export async function getAuctions(params: {
   maxPrice?: number
   endingSoon?: boolean
   buyNowOnly?: boolean
+  newListings?: boolean
   sortBy?: 'newest' | 'ending' | 'price_low' | 'price_high'
   page?: number
   limit?: number
@@ -34,6 +35,7 @@ export async function getAuctions(params: {
       maxPrice,
       endingSoon,
       buyNowOnly,
+      newListings,
       sortBy = 'newest',
       page = 1,
       limit = 12
@@ -54,9 +56,17 @@ export async function getAuctions(params: {
       ]
     }
 
-    // Category filter
+    // Category filter (supports single category or comma-separated multiple categories)
     if (category && category !== 'all') {
-      where.category = category
+      // Check if it's comma-separated (multiple categories)
+      if (category.includes(',')) {
+        const categories = category.split(',').filter(c => c.trim() !== '')
+        if (categories.length > 0) {
+          where.category = { in: categories }
+        }
+      } else {
+        where.category = category
+      }
     }
 
     // Condition filter
@@ -88,6 +98,15 @@ export async function getAuctions(params: {
     if (buyNowOnly) {
       where.buyNowPrice = {
         not: null
+      }
+    }
+
+    // New listings filter (created within last 7 days)
+    if (newListings) {
+      const weekAgo = new Date()
+      weekAgo.setDate(weekAgo.getDate() - 7)
+      where.createdAt = {
+        gte: weekAgo
       }
     }
 
@@ -151,8 +170,28 @@ export async function getAuctions(params: {
       db.auction.count({ where })
     ])
 
+    // Serialize Decimal and Date fields
+    const serializedAuctions = auctions.map(auction => ({
+      ...auction,
+      startingPrice: Number(auction.startingPrice),
+      currentPrice: Number(auction.currentPrice),
+      buyNowPrice: auction.buyNowPrice ? Number(auction.buyNowPrice) : null,
+      createdAt: auction.createdAt.toISOString(),
+      updatedAt: auction.updatedAt.toISOString(),
+      startTime: auction.startTime.toISOString(),
+      endTime: auction.endTime.toISOString(),
+      bids: auction.bids.map(bid => ({
+        ...bid,
+        amount: Number(bid.amount),
+        createdAt: bid.createdAt.toISOString()
+      })),
+      _count: {
+        bids: auction._count?.bids || 0
+      }
+    }))
+
     return {
-      auctions,
+      auctions: serializedAuctions,
       pagination: {
         page,
         limit,
@@ -271,7 +310,37 @@ export async function getAuctionById(id: string) {
       return null
     }
 
-    return auction
+    // Serialize Decimal fields to numbers (keep Date objects as-is for server-side use)
+    return {
+      id: auction.id,
+      title: auction.title,
+      description: auction.description,
+      category: auction.category,
+      condition: auction.condition,
+      images: auction.images,
+      startingPrice: Number(auction.startingPrice),
+      currentPrice: Number(auction.currentPrice),
+      buyNowPrice: auction.buyNowPrice ? Number(auction.buyNowPrice) : null,
+      startTime: auction.startTime,
+      endTime: auction.endTime,
+      status: auction.status,
+      winnerId: auction.winnerId,
+      userId: auction.userId,
+      createdAt: auction.createdAt,
+      updatedAt: auction.updatedAt,
+      user: auction.user,
+      bids: auction.bids.map(bid => ({
+        id: bid.id,
+        amount: Number(bid.amount),
+        userId: bid.userId,
+        auctionId: bid.auctionId,
+        createdAt: bid.createdAt,
+        user: bid.user
+      })),
+      _count: {
+        bids: auction._count?.bids || 0
+      }
+    }
   } catch (error) {
     console.error('Error fetching auction:', error)
     return null
@@ -296,9 +365,23 @@ export async function getCategories() {
       }
     })
 
+    // Category label mapping
+    const categoryLabels: Record<string, string> = {
+      ELECTRONICS: 'Electronics',
+      CLOTHING: 'Clothing',
+      BOOKS: 'Books',
+      FURNITURE: 'Furniture',
+      SPORTS: 'Sports',
+      JEWELRY: 'Jewelry',
+      ART: 'Art',
+      COLLECTIBLES: 'Collectibles',
+      VEHICLES: 'Vehicles',
+      OTHER: 'Other'
+    }
+
     return categories.map(cat => ({
       value: cat.category,
-      label: cat.category,
+      label: categoryLabels[cat.category] || cat.category,
       count: cat._count.category
     }))
   } catch (error) {
@@ -333,5 +416,89 @@ export async function getConditions() {
   } catch (error) {
     console.error('Error fetching conditions:', error)
     return []
+  }
+}
+
+// Update auction
+export async function updateAuction(formData: FormData) {
+  try {
+    const user = await requireAuth()
+    
+    const auctionId = formData.get('id') as string
+    const title = formData.get('title') as string
+    const description = formData.get('description') as string
+    const startingPrice = Number(formData.get('startingPrice'))
+    const buyNowPrice = formData.get('buyNowPrice') ? Number(formData.get('buyNowPrice')) : undefined
+    const duration = formData.get('duration') as string
+    
+    // Validate input
+    const validatedData = {
+      id: auctionId,
+      title,
+      description,
+      startingPrice,
+      buyNowPrice,
+      duration
+    }
+    
+    // Check if auction exists and belongs to user
+    const auction = await db.auction.findUnique({
+      where: { id: auctionId }
+    })
+    
+    if (!auction) {
+      return { success: false, error: 'Auction not found' }
+    }
+    
+    if (auction.userId !== user.id) {
+      return { success: false, error: 'Unauthorized' }
+    }
+    
+    if (auction.status !== AuctionStatus.ACTIVE) {
+      return { success: false, error: 'Only active auctions can be updated' }
+    }
+    
+    // Calculate new end time if duration changed
+    const endTime = duration ? 
+      new Date(Date.now() + parseInt(duration) * 24 * 60 * 60 * 1000) :
+      auction.endTime
+    
+    // Update auction
+    const updatedAuction = await db.auction.update({
+      where: { id: auctionId },
+      data: {
+        title: validatedData.title,
+        description: validatedData.description,
+        startingPrice: validatedData.startingPrice,
+        buyNowPrice: validatedData.buyNowPrice,
+        endTime
+      }
+    })
+    
+    revalidatePath('/dashboard/auctions')
+    revalidatePath(`/auctions/${auctionId}`)
+    
+    return { 
+      success: true, 
+      auction: {
+        ...updatedAuction,
+        startingPrice: Number(updatedAuction.startingPrice),
+        currentPrice: Number(updatedAuction.currentPrice),
+        buyNowPrice: updatedAuction.buyNowPrice ? Number(updatedAuction.buyNowPrice) : null,
+        createdAt: updatedAuction.createdAt.toISOString(),
+        updatedAt: updatedAuction.updatedAt.toISOString(),
+        startTime: updatedAuction.startTime.toISOString(),
+        endTime: updatedAuction.endTime.toISOString()
+      },
+      message: 'Auction updated successfully!' 
+    }
+  } catch (error) {
+    console.error('Error updating auction:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    return { 
+      success: false, 
+      error: 'Failed to update auction. Please try again.',
+      details: errorMessage
+    }
   }
 }

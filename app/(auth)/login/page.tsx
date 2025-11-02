@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { loginUser } from './actions'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -35,7 +36,15 @@ function LoginPageContent() {
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user, loading: authLoading } = useAuth()
   const redirectTo = searchParams.get('redirectTo') || '/auctions'
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.push(redirectTo)
+    }
+  }, [user, authLoading, router, redirectTo])
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -50,29 +59,43 @@ function LoginPageContent() {
     setIsLoading(true)
     
     try {
-      // Prepare form data for server action
-      const formData = new FormData()
-      formData.append('email', data.email)
-      formData.append('password', data.password)
-      formData.append('rememberMe', data.rememberMe ? 'on' : 'off')
+      // Sign in with Supabase directly from client
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password
+      })
 
-      const result = await loginUser(formData)
-
-      if (result.success && result.user) {
-        toast.success(result.message || 'Successfully signed in!')
+      if (error) {
+        console.error('Login error:', error)
         
-        // Store remember me preference
-        if (data.rememberMe) {
-          localStorage.setItem('rememberMe', 'true')
+        // Handle specific error messages
+        if (error.message.includes('Invalid login credentials')) {
+          toast.error('Invalid email or password. Please check your credentials and try again.')
+        } else if (error.message.includes('Email not confirmed')) {
+          toast.error('Please check your email and click the confirmation link before signing in.')
         } else {
-          localStorage.removeItem('rememberMe')
+          toast.error(error.message || 'Failed to sign in. Please try again.')
         }
-        
-        // Redirect to the intended page or auctions
-        router.push(redirectTo)
-      } else {
-        toast.error(result.error || 'Failed to sign in')
+        return
       }
+
+      if (!authData.user) {
+        toast.error('Failed to sign in. Please try again.')
+        return
+      }
+
+      toast.success('Successfully signed in!')
+      
+      // Store remember me preference
+      if (data.rememberMe) {
+        localStorage.setItem('rememberMe', 'true')
+      } else {
+        localStorage.removeItem('rememberMe')
+      }
+      
+      // Redirect to the intended page
+      router.push(redirectTo)
+      router.refresh() // Ensure the page re-renders with auth state
     } catch (error) {
       console.error('Login error:', error)
       toast.error('An unexpected error occurred. Please try again.')

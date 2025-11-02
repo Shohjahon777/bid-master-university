@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -6,7 +6,9 @@ import type { NextRequest } from 'next/server'
 const protectedRoutes = [
   '/auctions/new',
   '/dashboard',
-  '/profile'
+  '/profile',
+  '/notifications',
+  '/messages'
 ]
 
 // Public routes that don't require authentication
@@ -34,7 +36,7 @@ const authRoutes = [
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // Create Supabase client for proxy
+  // Create Supabase client for proxy with SSR
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   
@@ -43,22 +45,24 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey)
+  // Create a Supabase client with cookie support
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      get(name: string) {
+        return request.cookies.get(name)?.value
+      },
+      set(name: string, value: string, options: any) {
+        // Cannot set cookies in NextRequest - would need NextResponse
+      },
+      remove(name: string, options: any) {
+        // Cannot remove cookies in NextRequest - would need NextResponse
+      },
+    },
+  })
 
   // Get the current session from cookies
-  const token = request.cookies.get('sb-access-token')?.value || 
-                request.cookies.get('supabase-auth-token')?.value
-
-  let session = null
-  if (token) {
-    try {
-      const { data: { user } } = await supabase.auth.getUser(token)
-      session = user ? { user } : null
-    } catch (error) {
-      console.error('Error getting user in proxy:', error)
-      session = null
-    }
-  }
+  const { data: { user } } = await supabase.auth.getUser()
+  const session = user ? { user } : null
 
   // Check if the current path is protected
   const isProtectedRoute = protectedRoutes.some(route => 
@@ -127,8 +131,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - api routes
      * - public folder
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

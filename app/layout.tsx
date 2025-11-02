@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Navbar } from "@/components/navbar";
-import { Footer } from "@/components/footer";
+import { ConditionalNavbar } from "@/components/conditional-navbar";
 import { Toaster } from "@/components/ui/sonner";
 import { EnvCheck } from "@/components/env-check";
 
@@ -51,7 +50,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -59,11 +58,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <div className="relative flex min-h-screen flex-col">
-            <Navbar />
-            <main className="flex-1">
+            <ConditionalNavbar>
               {children}
-            </main>
-            <Footer />
+            </ConditionalNavbar>
           </div>
           <Toaster />
           <EnvCheck />

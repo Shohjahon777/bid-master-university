@@ -153,7 +153,7 @@ export default function HowItWorksPage() {
                 Browse Auctions
               </a>
               <a
-                href="/auctions/create"
+                href="/auctions/new"
                 className="inline-flex items-center justify-center px-6 py-3 border border-input text-base font-medium rounded-md text-foreground bg-background hover:bg-accent transition-colors"
               >
                 Create Auction

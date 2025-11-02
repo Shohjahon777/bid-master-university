@@ -66,10 +66,19 @@ export async function createAuction(formData: FormData) {
     // 6. Revalidate /auctions path
     revalidatePath('/auctions')
 
-    // 7. Return success
+    // 7. Return success with serialized auction
     return { 
       success: true, 
-      auction,
+      auction: {
+        ...auction,
+        startingPrice: Number(auction.startingPrice),
+        currentPrice: Number(auction.currentPrice),
+        buyNowPrice: auction.buyNowPrice ? Number(auction.buyNowPrice) : null,
+        createdAt: auction.createdAt.toISOString(),
+        updatedAt: auction.updatedAt.toISOString(),
+        startTime: auction.startTime.toISOString(),
+        endTime: auction.endTime.toISOString()
+      },
       message: 'Auction created successfully!' 
     }
   } catch (error) {
@@ -88,14 +97,17 @@ export async function createAuction(formData: FormData) {
     if (error instanceof Error && error.message.includes('Unique constraint')) {
       return { 
         success: false, 
-        error: 'An auction with this title already exists. Please choose a different title.' 
+        error: 'An auction with this title already exists. Please choose a different title.',
+        details: error.message
       }
     }
 
     // Handle other errors
+    const errorMessage = error instanceof Error ? error.message : String(error)
     return { 
       success: false, 
-      error: 'Failed to create auction. Please try again.' 
+      error: 'Failed to create auction. Please try again.',
+      details: errorMessage
     }
   }
 }

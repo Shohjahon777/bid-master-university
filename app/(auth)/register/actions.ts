@@ -98,10 +98,12 @@ export async function registerUser(formData: FormData) {
 
     // 1. Create user in Supabase Auth
     // Try with the original email first
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     let { data: authData, error: authError } = await supabase.auth.signUp({
       email: validatedData.email,
       password: validatedData.password,
       options: {
+        emailRedirectTo: `${baseUrl}/verify-email`,
         data: {
           name: validatedData.name,
           university: validatedData.university
@@ -118,6 +120,7 @@ export async function registerUser(formData: FormData) {
         email: alternativeEmail,
         password: validatedData.password,
         options: {
+          emailRedirectTo: `${baseUrl}/verify-email`,
           data: {
             name: validatedData.name,
             university: validatedData.university

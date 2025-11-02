@@ -47,6 +47,13 @@ export async function uploadUserAvatarAction(
 
     // Upload avatar
     const result = await uploadUserAvatar(file, user.id)
+    
+    // If upload successful, update user record with avatar URL
+    if (result.success && result.url) {
+      const { updateAvatar } = await import('@/lib/actions/user')
+      await updateAvatar(result.url)
+    }
+    
     return result
   } catch (error) {
     console.error('Error uploading user avatar:', error)

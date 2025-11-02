@@ -20,9 +20,10 @@ import {
 
 interface AuctionCardProps {
   auction: AuctionWithRelations
+  view?: 'grid' | 'list'
 }
 
-export function AuctionCard({ auction }: AuctionCardProps) {
+export function AuctionCard({ auction, view = 'grid' }: AuctionCardProps) {
   const [timeRemaining, setTimeRemaining] = useState(() => 
     getTimeRemaining(auction.endTime)
   )
@@ -88,6 +89,152 @@ export function AuctionCard({ auction }: AuctionCardProps) {
   const bidCount = auction._count?.bids || 0
   const hasBuyNow = auction.buyNowPrice && Number(auction.buyNowPrice) > 0
 
+  // Render list view (horizontal - one auction per row)
+  if (view === 'list') {
+    return (
+      <Link href={`/auctions/${auction.id}`} className="block group w-full">
+        <Card className="overflow-hidden transition-all duration-300 hover:shadow-lg border-border/50 hover:border-border w-full">
+          <div className="flex flex-row gap-6 p-4">
+            {/* Image Section - Horizontal List View */}
+            <div className="relative w-48 h-48 flex-shrink-0 overflow-hidden bg-muted rounded-lg">
+              {auction.images.length > 0 ? (
+                <Image
+                  src={auction.images[0]}
+                  alt={auction.title}
+                  fill
+                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  sizes="192px"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-muted-foreground/20 flex items-center justify-center">
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                    </div>
+                    <p className="text-sm">No image</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Overlay badges - Horizontal List View */}
+              <div className="absolute top-2 left-2 flex flex-col gap-2">
+                <Badge 
+                  className={`${getCategoryColor(auction.category)} border text-xs`}
+                  variant="outline"
+                >
+                  {auction.category}
+                </Badge>
+                <Badge 
+                  className={`${getConditionColor(auction.condition)} border text-xs`}
+                  variant="outline"
+                >
+                  {auction.condition}
+                </Badge>
+              </div>
+
+              {/* Status and Buy Now badges - Horizontal List View */}
+              <div className="absolute top-2 right-2 flex flex-col gap-2">
+                <Badge 
+                  variant={isActive ? 'default' : isEnded ? 'secondary' : 'destructive'}
+                  className="font-medium text-xs"
+                >
+                  {statusText}
+                </Badge>
+                {hasBuyNow && isActive && (
+                  <Badge className="bg-green-600 hover:bg-green-700 text-white border-0 text-xs">
+                    Buy Now
+                  </Badge>
+                )}
+              </div>
+
+              {/* Time remaining overlay - Horizontal List View */}
+              {isActive && (
+                <div className="absolute bottom-2 left-2 right-2">
+                  <div className="bg-black/80 backdrop-blur-sm rounded-lg px-2 py-1">
+                    <p className="text-white text-xs font-medium text-center">
+                      {formatTimeRemaining()} left
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Content Section - Horizontal List View */}
+            <div className="flex-1 flex flex-col justify-between min-w-0">
+              <div className="flex-1">
+                <h3 className="font-semibold text-xl leading-tight mb-2 group-hover:text-primary transition-colors">
+                  {auction.title}
+                </h3>
+                
+                {/* Price and bid info */}
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-3xl font-bold text-primary">
+                    {formatCurrency(Number(auction.currentPrice))}
+                  </span>
+                  {bidCount > 0 && (
+                    <Badge variant="outline" className="text-sm">
+                      {bidCount} bid{bidCount !== 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Starting price and Buy Now */}
+                <div className="flex flex-wrap gap-3 mb-3 text-sm">
+                  {Number(auction.currentPrice) > Number(auction.startingPrice) && (
+                    <span className="text-muted-foreground">
+                      Started at {formatCurrency(Number(auction.startingPrice))}
+                    </span>
+                  )}
+                  {hasBuyNow && (
+                    <span className="text-green-600 font-medium">
+                      Buy Now: {formatCurrency(Number(auction.buyNowPrice!))}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Seller info */}
+              <div className="flex items-center gap-2 pt-2 border-t">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={auction.user.avatar || undefined} />
+                  <AvatarFallback>
+                    {getInitials(auction.user.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {auction.user.name}
+                    {auction.user.verified && (
+                      <span className="ml-1 text-blue-500">✓</span>
+                    )}
+                  </p>
+                  {auction.user.university && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {auction.user.university}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Link>
+    )
+  }
+
+  // Render grid view (default)
   return (
     <Link href={`/auctions/${auction.id}`} className="block group">
       <Card className="overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-lg border-border/50 hover:border-border">

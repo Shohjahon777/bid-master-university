@@ -46,7 +46,7 @@ export function formatRelativeTime(date: Date): string {
 }
 
 // Get time remaining until auction ends
-export function getTimeRemaining(endTime: Date): {
+export function getTimeRemaining(endTime: Date | string): {
   days: number
   hours: number
   minutes: number
@@ -54,8 +54,9 @@ export function getTimeRemaining(endTime: Date): {
   total: number
   isExpired: boolean
 } {
+  const endTimeDate = typeof endTime === 'string' ? new Date(endTime) : endTime
   const now = new Date()
-  const total = endTime.getTime() - now.getTime()
+  const total = endTimeDate.getTime() - now.getTime()
   const isExpired = total <= 0
 
   if (isExpired) {
@@ -69,10 +70,10 @@ export function getTimeRemaining(endTime: Date): {
     }
   }
 
-  const days = differenceInDays(endTime, now)
-  const hours = differenceInHours(endTime, now) % 24
-  const minutes = differenceInMinutes(endTime, now) % 60
-  const seconds = differenceInSeconds(endTime, now) % 60
+  const days = differenceInDays(endTimeDate, now)
+  const hours = differenceInHours(endTimeDate, now) % 24
+  const minutes = differenceInMinutes(endTimeDate, now) % 60
+  const seconds = differenceInSeconds(endTimeDate, now) % 60
 
   return {
     days,
@@ -85,23 +86,26 @@ export function getTimeRemaining(endTime: Date): {
 }
 
 // Check if auction is currently active
-export function isAuctionActive(auction: Auction): boolean {
+export function isAuctionActive(auction: { status: AuctionStatus, startTime: Date | string, endTime: Date | string }): boolean {
   const now = new Date()
+  const startTime = typeof auction.startTime === 'string' ? new Date(auction.startTime) : auction.startTime
+  const endTime = typeof auction.endTime === 'string' ? new Date(auction.endTime) : auction.endTime
   return (
     auction.status === AuctionStatus.ACTIVE &&
-    auction.startTime <= now &&
-    auction.endTime > now
+    startTime <= now &&
+    endTime > now
   )
 }
 
 // Check if auction has ended
-export function isAuctionEnded(auction: Auction): boolean {
+export function isAuctionEnded(auction: { status: AuctionStatus, endTime: Date | string }): boolean {
   const now = new Date()
-  return auction.status === AuctionStatus.ENDED || auction.endTime <= now
+  const endTime = typeof auction.endTime === 'string' ? new Date(auction.endTime) : auction.endTime
+  return auction.status === AuctionStatus.ENDED || endTime <= now
 }
 
 // Check if auction is cancelled
-export function isAuctionCancelled(auction: Auction): boolean {
+export function isAuctionCancelled(auction: { status: AuctionStatus }): boolean {
   return auction.status === AuctionStatus.CANCELLED
 }
 
@@ -160,7 +164,7 @@ export function getAuctionStatusVariant(status: AuctionStatus): 'default' | 'sec
 }
 
 // Generate auction status text
-export function getAuctionStatusText(auction: Auction): string {
+export function getAuctionStatusText(auction: { status: AuctionStatus, startTime: Date | string, endTime: Date | string, winnerId?: string | null }): string {
   if (isAuctionCancelled(auction)) {
     return 'Cancelled'
   }
@@ -209,13 +213,13 @@ export function generateId(length: number = 8): string {
 }
 
 // Debounce function for search inputs
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: never[]) => void>(
   func: T,
   wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout)
+): T {
+  let timeout: NodeJS.Timeout | undefined
+  return ((...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout)
     timeout = setTimeout(() => func(...args), wait)
-  }
+  }) as T
 }

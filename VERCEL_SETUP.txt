@@ -1,0 +1,63 @@
+VERCEL ENVIRONMENT VARIABLES - SET THESE NOW
+================================================
+
+Go to: https://vercel.com → Your Project → Settings → Environment Variables
+
+Copy these EXACTLY (replace <values> with your actual credentials):
+
+1. SUPABASE (Get from: https://supabase.com/dashboard/project/bbnucuqzdggpkyvdagmz/settings/api)
+   -------
+   NEXT_PUBLIC_SUPABASE_URL=https://bbnucuqzdggpkyvdagmz.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=<copy from supabase dashboard - anon public key>
+   SUPABASE_SERVICE_ROLE_KEY=<copy from supabase dashboard - service_role secret key>
+
+2. DATABASE (Get from: https://supabase.com/dashboard/project/bbnucuqzdggpkyvdagmz/settings/database)
+   --------
+   DATABASE_URL=<copy "Connection pooling" URL - port 6543>
+   DIRECT_URL=<copy "Connection string" - port 5432>
+
+   Example format:
+   DATABASE_URL=postgresql://postgres.bbnucuqzdggpkyvdagmz:[PASSWORD]@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+   DIRECT_URL=postgresql://postgres.bbnucuqzdggpkyvdagmz:[PASSWORD]@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
+
+3. APP URLS
+   --------
+   NEXT_PUBLIC_APP_URL=https://bid-master-university.vercel.app
+   NEXT_PUBLIC_BASE_URL=https://bid-master-university.vercel.app
+   NEXT_PUBLIC_SITE_URL=https://bid-master-university.vercel.app
+
+4. EMAIL (Optional - only if you want email notifications)
+   -----
+   RESEND_API_KEY=<your resend api key>
+   EMAIL_FROM=onboarding@resend.dev
+
+5. CRON (Generate secret)
+   ----
+   CRON_SECRET=<run in terminal: openssl rand -base64 32>
+
+AFTER SETTING VARIABLES:
+1. Go to Deployments tab
+2. Click "..." on latest deployment
+3. Click "Redeploy" (uncheck "Use existing Build Cache")
+
+TESTING:
+After deployment, visit:
+- https://bid-master-university.vercel.app/api/test-db (check database connection)
+- https://bid-master-university.vercel.app/ (home page)
+- https://bid-master-university.vercel.app/auctions (auctions page)
+
+WHAT WAS FIXED:
+✅ Added data serialization (Date/Decimal to string/number)
+✅ Added detailed logging to track issues
+✅ Added database connection error handling
+✅ Added fallback UI for errors
+✅ Updated Prisma binary targets for Vercel
+✅ Created /api/test-db endpoint to diagnose issues
+✅ Better error messages for missing env vars
+
+IF STILL NO AUCTIONS SHOWING:
+- Check /api/test-db to see database stats
+- Look at Vercel deployment logs for errors
+- Verify DATABASE_URL is set correctly
+- Make sure you have auctions in your database (check Supabase dashboard)
+

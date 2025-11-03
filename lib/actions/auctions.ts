@@ -27,6 +27,8 @@ export async function getAuctions(params: {
   limit?: number
 }) {
   try {
+    console.log('🔍 getAuctions called with params:', JSON.stringify(params, null, 2))
+    
     const {
       search,
       category,
@@ -47,6 +49,8 @@ export async function getAuctions(params: {
     const where: any = {
       status: AuctionStatus.ACTIVE
     }
+    
+    console.log('📊 Database query where clause:', JSON.stringify(where, null, 2))
 
     // Search filter
     if (search) {
@@ -130,6 +134,17 @@ export async function getAuctions(params: {
     }
 
     // Get auctions
+    console.log('🔌 Attempting database connection...')
+    
+    // Test database connection first
+    try {
+      await db.$connect()
+      console.log('✅ Database connected successfully')
+    } catch (connectError) {
+      console.error('❌ Database connection failed:', connectError)
+      throw connectError
+    }
+    
     const [auctions, total] = await Promise.all([
       db.auction.findMany({
         where,
@@ -169,6 +184,8 @@ export async function getAuctions(params: {
       }),
       db.auction.count({ where })
     ])
+    
+    console.log(`✅ Found ${total} total auctions, returning ${auctions.length} auctions`)
 
     // Serialize Decimal and Date fields
     const serializedAuctions = auctions.map(auction => ({
@@ -202,7 +219,22 @@ export async function getAuctions(params: {
       }
     }
   } catch (error) {
-    console.error('Error fetching auctions:', error)
+    console.error('❌ Error fetching auctions:', error)
+    console.error('Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    })
+    
+    // Check if it's a database connection error
+    if (error instanceof Error && (
+      error.message.includes('connect') || 
+      error.message.includes('ECONNREFUSED') ||
+      error.message.includes('timeout')
+    )) {
+      console.error('❌ DATABASE CONNECTION ERROR - Check your DATABASE_URL environment variable')
+    }
+    
     // Return empty result instead of throwing to prevent page crashes
     return {
       auctions: [],

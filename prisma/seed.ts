@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, UserRole } from '@prisma/client'
 import { createClient } from '@supabase/supabase-js'
 
 const prisma = new PrismaClient()
@@ -222,7 +222,7 @@ async function seed() {
                 name: testUser.name,
                 university: testUser.university,
                 verified: true,
-                role: testUser.role || 'USER'
+                role: (testUser.role as UserRole) || UserRole.USER
               }
             })
 

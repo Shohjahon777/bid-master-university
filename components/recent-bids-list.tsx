@@ -14,7 +14,7 @@ interface RecentBid {
   auctionTitle: string
   auctionId: string
   bidAmount: number
-  status: "winning" | "outbid" | "won"
+  status: "winning" | "outbid" | "won" | "lost"
   timeAgo: string
   auctionImageUrl?: string
 }
@@ -33,6 +33,8 @@ export function RecentBidsList({ bids, showViewAll = true }: RecentBidsListProps
         return "secondary"
       case "won":
         return "default"
+      case "lost":
+        return "secondary"
       default:
         return "secondary"
     }
@@ -46,6 +48,8 @@ export function RecentBidsList({ bids, showViewAll = true }: RecentBidsListProps
         return "Outbid"
       case "won":
         return "Won"
+      case "lost":
+        return "Lost"
       default:
         return "Unknown"
     }

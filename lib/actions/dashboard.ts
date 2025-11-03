@@ -28,7 +28,7 @@ export interface RecentBid {
   auctionTitle: string
   auctionId: string
   bidAmount: number
-  status: "winning" | "outbid" | "won"
+  status: "winning" | "outbid" | "won" | "lost"
   timeAgo: string
   auctionImageUrl?: string
 }

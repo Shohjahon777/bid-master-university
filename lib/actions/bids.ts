@@ -30,6 +30,13 @@ export async function placeBid(auctionId: string, amount: number) {
     // Validate input
     const validatedData = placeBidSchema.parse({ amount, auctionId })
 
+    // Check and end auction if expired (on-demand check for better UX with daily cron limitation)
+    const { checkAndEndAuction } = await import('@/lib/scheduler')
+    await checkAndEndAuction(auctionId).catch((error) => {
+      console.error('Error checking auction expiration:', error)
+      // Continue with bid placement even if check fails
+    })
+
     // Get auction details with current highest bidder
     const auction = await db.auction.findUnique({
       where: { id: auctionId },

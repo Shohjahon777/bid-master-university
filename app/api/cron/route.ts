@@ -37,12 +37,15 @@ function verifyCronAuth(request: NextRequest): boolean {
 
 /**
  * GET /api/cron
- * Consolidated cron job endpoint for scheduled tasks
+ * Daily cron job endpoint for scheduled tasks (Vercel Hobby plan - daily limit)
  * 
- * Runs:
- * - checkAndEndAuctions() - every 5 minutes (always runs)
- * - sendAuctionEndingReminders() - only at the top of each hour (when minute is 0)
- * - cleanup tasks - only at 2 AM daily (when hour is 2 and minute is 0)
+ * Runs once daily at 2 AM:
+ * - checkAndEndAuctions() - ends expired auctions
+ * - sendAuctionEndingReminders() - sends reminders for auctions ending soon
+ * - runAllCleanupTasks() - database cleanup tasks
+ * 
+ * Note: For more frequent auction ending checks, consider implementing
+ * on-demand checks when users view/place bids on auctions.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -56,14 +59,11 @@ export async function GET(request: NextRequest) {
 
     const startTime = Date.now()
     const results: Record<string, unknown> = {}
-    const now = new Date()
-    const currentMinute = now.getMinutes()
-    const currentHour = now.getHours()
 
-    // Get the cron type from query params or auto-detect
+    // Get the cron type from query params (allows manual triggering)
     const type = request.nextUrl.searchParams.get('type')
 
-    // Always run end-auctions check (runs every 5 minutes)
+    // Run end-auctions check (check for expired auctions)
     if (type === 'end-auctions' || !type || type === 'all') {
       try {
         const endedCount = await checkAndEndAuctions()
@@ -74,9 +74,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Run reminders only at the top of each hour (minute 0)
-    const shouldRunReminders = (type === 'reminders' || type === 'all') && currentMinute === 0
-    if (shouldRunReminders) {
+    // Send auction ending reminders
+    if (type === 'reminders' || !type || type === 'all') {
       try {
         const reminders = await sendAuctionEndingReminders()
         results.reminders = reminders
@@ -86,9 +85,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Run cleanup only at 2 AM daily
-    const shouldRunCleanup = (type === 'cleanup' || type === 'all') && currentHour === 2 && currentMinute === 0
-    if (shouldRunCleanup) {
+    // Run cleanup tasks
+    if (type === 'cleanup' || !type || type === 'all') {
       try {
         const cleanupResults = await runAllCleanupTasks()
         results.cleanup = {
@@ -113,10 +111,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       results,
-      schedule: {
-        reminders: shouldRunReminders ? 'running' : `skipped (runs at minute 0)`,
-        cleanup: shouldRunCleanup ? 'running' : `skipped (runs at 2:00 AM)`
-      },
+      note: 'This cron runs once daily at 2 AM (Vercel Hobby plan limitation). All tasks run together.',
       duration: `${duration}ms`,
       timestamp: new Date().toISOString()
     })

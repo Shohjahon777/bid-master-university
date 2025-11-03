@@ -10,6 +10,103 @@ import {
 import { formatCurrency, getTimeRemaining } from '@/lib/utils'
 
 /**
+ * Check and end a single auction if it has expired
+ * Lightweight function for on-demand checks when viewing/bidding on auctions
+ * @param auctionId - The ID of the auction to check
+ * @returns true if auction was ended, false otherwise
+ */
+export async function checkAndEndAuction(auctionId: string): Promise<boolean> {
+  try {
+    const now = new Date()
+
+    // Find the auction if it's expired
+    const auction = await db.auction.findFirst({
+      where: {
+        id: auctionId,
+        status: AuctionStatus.ACTIVE,
+        endTime: {
+          lte: now
+        }
+      },
+      include: {
+        user: true, // Seller
+        bids: {
+          orderBy: {
+            amount: 'desc'
+          },
+          take: 1, // Get highest bid
+          include: {
+            user: true // Winner
+          }
+        }
+      }
+    })
+
+    if (!auction) {
+      return false // Auction not expired or doesn't exist
+    }
+
+    const highestBid = auction.bids[0]
+
+    await db.$transaction(async (tx) => {
+      if (highestBid) {
+        // Auction has bids - set winner
+        await tx.auction.update({
+          where: { id: auction.id },
+          data: {
+            status: AuctionStatus.ENDED,
+            winnerId: highestBid.userId,
+            currentPrice: highestBid.amount
+          }
+        })
+
+        // Send notification to winner
+        await createNotification(
+          highestBid.userId,
+          NotificationType.AUCTION_WON,
+          `Congratulations! You won "${auction.title}" for ${formatCurrency(Number(highestBid.amount))}`,
+          `/auctions/${auction.id}`
+        )
+
+        // Send notification to seller
+        await createNotification(
+          auction.userId,
+          NotificationType.AUCTION_ENDED,
+          `Your auction "${auction.title}" ended. Winner: ${highestBid.user.name}`,
+          `/auctions/${auction.id}`
+        )
+
+        // Send email to winner
+        sendAuctionWonEmail(highestBid.user, auction).catch((error) => {
+          console.error(`Error sending winner email for auction ${auction.id}:`, error)
+        })
+      } else {
+        // No bids - just end the auction
+        await tx.auction.update({
+          where: { id: auction.id },
+          data: {
+            status: AuctionStatus.ENDED
+          }
+        })
+
+        // Send notification to seller
+        await createNotification(
+          auction.userId,
+          NotificationType.AUCTION_ENDED,
+          `Your auction "${auction.title}" ended without any bids.`,
+          `/auctions/${auction.id}`
+        )
+      }
+    })
+
+    return true
+  } catch (error) {
+    console.error(`Error checking and ending auction ${auctionId}:`, error)
+    return false
+  }
+}
+
+/**
  * Check and end auctions where endTime has passed
  * @returns Number of auctions that were ended
  */

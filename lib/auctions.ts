@@ -53,6 +53,13 @@ export async function getRecentAuctions(limit: number = 6): Promise<AuctionWithR
 
 export async function getAuctionById(id: string): Promise<AuctionWithRelations | null> {
   try {
+    // Check and end auction if expired (on-demand check for better UX with daily cron limitation)
+    const { checkAndEndAuction } = await import('@/lib/scheduler')
+    await checkAndEndAuction(id).catch((error) => {
+      console.error('Error checking auction expiration:', error)
+      // Continue with fetching auction even if check fails
+    })
+
     const auction = await db.auction.findUnique({
       where: { id },
       include: {

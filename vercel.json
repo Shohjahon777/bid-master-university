@@ -6,8 +6,8 @@
   "regions": ["iad1"],
   "crons": [
     {
-      "path": "/api/cron?type=end-auctions",
-      "schedule": "*/5 * * * *"
+      "path": "/api/cron",
+      "schedule": "0 2 * * *"
     }
   ],
   "env": {

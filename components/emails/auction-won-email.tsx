@@ -66,7 +66,7 @@ export function AuctionWonEmail({
                   style={auctionImageStyle}
                 />
               )}
-              <Heading style={auctionTitle}>{auctionTitle}</Heading>
+              <Heading style={auctionTitleStyle}>{auctionTitle}</Heading>
               <Text style={auctionInfo}>
                 Winning Bid: <strong style={winPrice}>{formattedAmount}</strong>
               </Text>
@@ -166,7 +166,7 @@ const auctionImageStyle = {
   maxWidth: '100%',
 }
 
-const auctionTitle = {
+const auctionTitleStyle = {
   color: '#111827',
   fontSize: '18px',
   fontWeight: 'bold',

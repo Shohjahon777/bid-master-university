@@ -68,7 +68,7 @@ export function AuctionEndingEmail({
                   style={auctionImageStyle}
                 />
               )}
-              <Heading style={auctionTitle}>{auctionTitle}</Heading>
+              <Heading style={auctionTitleStyle}>{auctionTitle}</Heading>
               <Text style={auctionInfo}>
                 Current Price: <strong style={price}>{formattedAmount}</strong>
               </Text>
@@ -166,7 +166,7 @@ const auctionImageStyle = {
   maxWidth: '100%',
 }
 
-const auctionTitle = {
+const auctionTitleStyle = {
   color: '#111827',
   fontSize: '18px',
   fontWeight: 'bold',

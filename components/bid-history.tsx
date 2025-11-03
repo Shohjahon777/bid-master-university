@@ -42,7 +42,7 @@ export function BidHistory({ auctionId, initialBids, currentUserId, className }:
           const result = await getBidHistory(auctionId, 1)
           if (result.success && result.bids && result.bids.length > 0) {
             const newBid = result.bids[0]
-            setBids(prev => [newBid, ...prev])
+            setBids(prev => [newBid as any, ...prev])
           }
         }
       )
@@ -58,7 +58,7 @@ export function BidHistory({ auctionId, initialBids, currentUserId, className }:
     try {
       const result = await getBidHistory(auctionId, 20)
       if (result.success && result.bids) {
-        setBids(result.bids)
+        setBids(result.bids as any)
         setShowAll(true)
       }
     } catch (error) {

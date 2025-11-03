@@ -27,6 +27,17 @@ async function AuctionsContent({ searchParams }: AuctionsPageProps) {
   const params = await searchParams
   
   // Parse search params
+  // Map sortBy values from URL format to API format
+  const sortByMap: Record<string, 'newest' | 'ending' | 'price_low' | 'price_high'> = {
+    'newest': 'newest',
+    'ending-soon': 'ending',
+    'price-asc': 'price_low',
+    'price-desc': 'price_high'
+  }
+  
+  const sortByParam = params.sortBy as keyof typeof sortByMap
+  const sortBy = sortByMap[sortByParam] || 'newest'
+  
   const filters = {
     search: params.search,
     category: params.category,
@@ -36,7 +47,7 @@ async function AuctionsContent({ searchParams }: AuctionsPageProps) {
     endingSoon: params.endingSoon === 'true',
     buyNowOnly: params.buyNowOnly === 'true',
     newListings: params.newListings === 'true',
-    sortBy: (params.sortBy as 'newest' | 'ending-soon' | 'price-asc' | 'price-desc') || 'newest',
+    sortBy,
     page: params.page ? Number(params.page) : 1,
     limit: 12,
     view: params.view || 'grid'
@@ -68,7 +79,7 @@ async function AuctionsContent({ searchParams }: AuctionsPageProps) {
 
           {/* Auctions List */}
           <AuctionsList
-            auctions={auctionsData.auctions}
+            auctions={auctionsData.auctions as any}
             pagination={auctionsData.pagination}
             currentFilters={filters}
           />

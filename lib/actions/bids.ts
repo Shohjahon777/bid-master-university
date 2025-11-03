@@ -150,7 +150,7 @@ export async function placeBid(auctionId: string, amount: number) {
 
     // Send bid notification to current user
     if (result.auction) {
-      sendBidNotification(user, result.auction as any, validatedData.amount).catch((error) => {
+      sendBidNotification(user as any, result.auction as any, validatedData.amount).catch((error) => {
         console.error('Error sending bid notification email:', error)
       })
     }

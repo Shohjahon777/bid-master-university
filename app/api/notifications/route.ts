@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Serialize notifications
-    const notifications = result.notifications.map((notification) => ({
+    const notifications = (result.notifications || []).map((notification) => ({
       ...notification,
       createdAt: notification.createdAt.toISOString(),
     }))

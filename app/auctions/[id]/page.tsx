@@ -11,7 +11,6 @@ import { AuctionDetailSkeleton } from '@/components/skeletons/auction-detail-ske
 
 // Lazy load heavy components
 const BidForm = dynamic(() => import('@/components/bid-form').then(mod => ({ default: mod.BidForm })), {
-  ssr: false,
   loading: () => <div className="h-32 bg-muted animate-pulse rounded-lg" />
 })
 

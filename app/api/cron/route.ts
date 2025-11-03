@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkAndEndAuctions, sendAuctionEndingReminders } from '@/lib/scheduler'
+import { runAllCleanupTasks } from '@/lib/cleanup'
 
 /**
  * Verify the cron API key from request headers
@@ -36,11 +37,12 @@ function verifyCronAuth(request: NextRequest): boolean {
 
 /**
  * GET /api/cron
- * Cron job endpoint for scheduled tasks
+ * Consolidated cron job endpoint for scheduled tasks
  * 
  * Runs:
- * - checkAndEndAuctions() - every 5 minutes
- * - sendAuctionEndingReminders() - every hour
+ * - checkAndEndAuctions() - every 5 minutes (always runs)
+ * - sendAuctionEndingReminders() - only at the top of each hour (when minute is 0)
+ * - cleanup tasks - only at 2 AM daily (when hour is 2 and minute is 0)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -54,12 +56,15 @@ export async function GET(request: NextRequest) {
 
     const startTime = Date.now()
     const results: Record<string, unknown> = {}
+    const now = new Date()
+    const currentMinute = now.getMinutes()
+    const currentHour = now.getHours()
 
-    // Get the cron type from query params or run both
+    // Get the cron type from query params or auto-detect
     const type = request.nextUrl.searchParams.get('type')
 
-    if (type === 'end-auctions' || !type) {
-      // Check and end expired auctions
+    // Always run end-auctions check (runs every 5 minutes)
+    if (type === 'end-auctions' || !type || type === 'all') {
       try {
         const endedCount = await checkAndEndAuctions()
         results.endedAuctions = endedCount
@@ -69,8 +74,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (type === 'reminders' || !type) {
-      // Send auction ending reminders
+    // Run reminders only at the top of each hour (minute 0)
+    const shouldRunReminders = (type === 'reminders' || type === 'all') && currentMinute === 0
+    if (shouldRunReminders) {
       try {
         const reminders = await sendAuctionEndingReminders()
         results.reminders = reminders
@@ -80,11 +86,37 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Run cleanup only at 2 AM daily
+    const shouldRunCleanup = (type === 'cleanup' || type === 'all') && currentHour === 2 && currentMinute === 0
+    if (shouldRunCleanup) {
+      try {
+        const cleanupResults = await runAllCleanupTasks()
+        results.cleanup = {
+          success: cleanupResults.success,
+          totalDeleted: Object.values(cleanupResults.results).reduce((sum, result) => {
+            return sum + (result.deletedCount || 0)
+          }, 0),
+          tasksRun: Object.keys(cleanupResults.results).length,
+          errors: cleanupResults.errors.length
+        }
+        if (cleanupResults.errors.length > 0) {
+          results.cleanupErrors = cleanupResults.errors
+        }
+      } catch (error) {
+        console.error('Error running cleanup:', error)
+        results.cleanupError = error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+
     const duration = Date.now() - startTime
 
     return NextResponse.json({
       success: true,
       results,
+      schedule: {
+        reminders: shouldRunReminders ? 'running' : `skipped (runs at minute 0)`,
+        cleanup: shouldRunCleanup ? 'running' : `skipped (runs at 2:00 AM)`
+      },
       duration: `${duration}ms`,
       timestamp: new Date().toISOString()
     })

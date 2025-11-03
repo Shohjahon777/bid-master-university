@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
 export function AuthDebug() {
-  const { user, loading, isAuthenticated, refreshAuth } = useAuth()
+  const { user, loading, isAuthenticated } = useAuth()
 
   if (process.env.NODE_ENV !== 'development') {
     return null
@@ -40,15 +40,6 @@ export function AuthDebug() {
             </div>
           </>
         )}
-        
-        <Button 
-          size="sm" 
-          variant="outline" 
-          onClick={refreshAuth}
-          className="w-full mt-2"
-        >
-          Refresh Auth
-        </Button>
       </CardContent>
     </Card>
   )

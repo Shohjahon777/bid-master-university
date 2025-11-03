@@ -23,7 +23,7 @@ export async function SimilarAuctions({
   })
 
   // Filter out the current auction
-  const similarAuctions = auctions.filter((auction: AuctionWithRelations) => auction.id !== currentAuctionId)
+  const similarAuctions = (auctions as any[]).filter((auction: any) => auction.id !== currentAuctionId)
 
   if (similarAuctions.length === 0) {
     return null

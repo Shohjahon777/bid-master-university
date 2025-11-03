@@ -56,9 +56,18 @@ async function AuctionsContent({ searchParams }: AuctionsPageProps) {
 
     // Fetch data in parallel with optimized queries
     const [auctionsData, categories, conditions] = await Promise.all([
-      getAuctions(filters),
-      getCategories(),
-      getConditions()
+      getAuctions(filters).catch((err) => {
+        console.error('Error fetching auctions:', err)
+        return { auctions: [], pagination: { page: 1, limit: 12, total: 0, totalPages: 0, hasNext: false, hasPrev: false } }
+      }),
+      getCategories().catch((err) => {
+        console.error('Error fetching categories:', err)
+        return []
+      }),
+      getConditions().catch((err) => {
+        console.error('Error fetching conditions:', err)
+        return []
+      })
     ])
 
     return (
@@ -97,8 +106,15 @@ async function AuctionsContent({ searchParams }: AuctionsPageProps) {
     )
   } catch (error) {
     console.error('Error in AuctionsContent:', error)
-    // Re-throw to trigger error boundary
-    throw error
+    // Return error state instead of throwing to prevent entire page crash
+    return (
+      <div className="text-center py-12">
+        <h3 className="text-lg font-semibold text-foreground mb-2">Unable to load auctions</h3>
+        <p className="text-muted-foreground mb-6">
+          Please check your database connection and try again.
+        </p>
+      </div>
+    )
   }
 }
 

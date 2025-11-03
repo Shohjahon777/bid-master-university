@@ -203,7 +203,18 @@ export async function getAuctions(params: {
     }
   } catch (error) {
     console.error('Error fetching auctions:', error)
-    throw new Error('Failed to fetch auctions')
+    // Return empty result instead of throwing to prevent page crashes
+    return {
+      auctions: [],
+      pagination: {
+        page: params.page || 1,
+        limit: params.limit || 12,
+        total: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrev: false
+      }
+    }
   }
 }
 

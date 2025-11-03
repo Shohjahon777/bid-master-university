@@ -19,17 +19,32 @@ export async function GET(request: NextRequest) {
     const result = await getUserNotifications(userId, limit)
 
     if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: result.error || 'Failed to fetch notifications' },
-        { status: 500 }
-      )
+      console.error('Failed to fetch notifications:', result.error)
+      // Return empty array instead of error to prevent UI breakage
+      return NextResponse.json({
+        success: true,
+        notifications: [],
+        error: result.error
+      })
     }
 
-    // Serialize notifications
-    const notifications = (result.notifications || []).map((notification) => ({
-      ...notification,
-      createdAt: notification.createdAt.toISOString(),
-    }))
+    // Serialize notifications with error handling
+    const notifications = (result.notifications || []).map((notification) => {
+      try {
+        return {
+          ...notification,
+          createdAt: notification.createdAt instanceof Date 
+            ? notification.createdAt.toISOString() 
+            : new Date(notification.createdAt).toISOString(),
+        }
+      } catch (err) {
+        console.error('Error serializing notification:', err, notification)
+        return {
+          ...notification,
+          createdAt: new Date().toISOString(),
+        }
+      }
+    })
 
     return NextResponse.json({
       success: true,
@@ -37,10 +52,12 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error in notifications API:', error)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    )
+    // Return empty array instead of error to prevent UI breakage
+    return NextResponse.json({
+      success: true,
+      notifications: [],
+      error: error instanceof Error ? error.message : 'Internal server error'
+    })
   }
 }
 

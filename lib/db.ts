@@ -6,6 +6,12 @@ const globalForPrisma = globalThis as unknown as {
 
 export const db =
   globalForPrisma.prisma ??
-  new PrismaClient()
+  new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    errorFormat: 'pretty',
+  })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+
+// Prisma will connect automatically when needed
+// Don't call $connect() here as it can fail during module initialization

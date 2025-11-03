@@ -24,69 +24,82 @@ interface AuctionsPageProps {
 
 // Separate component for data fetching to allow Suspense
 async function AuctionsContent({ searchParams }: AuctionsPageProps) {
-  const params = await searchParams
-  
-  // Parse search params
-  // Map sortBy values from URL format to API format
-  const sortByMap: Record<string, 'newest' | 'ending' | 'price_low' | 'price_high'> = {
-    'newest': 'newest',
-    'ending-soon': 'ending',
-    'price-asc': 'price_low',
-    'price-desc': 'price_high'
-  }
-  
-  const sortByParam = params.sortBy as keyof typeof sortByMap
-  const sortBy = sortByMap[sortByParam] || 'newest'
-  
-  const filters = {
-    search: params.search,
-    category: params.category,
-    condition: params.condition,
-    minPrice: params.minPrice ? Number(params.minPrice) : undefined,
-    maxPrice: params.maxPrice ? Number(params.maxPrice) : undefined,
-    endingSoon: params.endingSoon === 'true',
-    buyNowOnly: params.buyNowOnly === 'true',
-    newListings: params.newListings === 'true',
-    sortBy,
-    page: params.page ? Number(params.page) : 1,
-    limit: 12,
-    view: params.view || 'grid'
-  }
+  try {
+    const params = await searchParams
+    
+    // Parse search params
+    // Map sortBy values from URL format to API format
+    const sortByMap: Record<string, 'newest' | 'ending' | 'price_low' | 'price_high'> = {
+      'newest': 'newest',
+      'ending-soon': 'ending',
+      'price-asc': 'price_low',
+      'price-desc': 'price_high'
+    }
+    
+    const sortByParam = params.sortBy as keyof typeof sortByMap
+    const sortBy = sortByMap[sortByParam] || 'newest'
+    
+    const filters = {
+      search: params.search,
+      category: params.category,
+      condition: params.condition,
+      minPrice: params.minPrice ? Number(params.minPrice) : undefined,
+      maxPrice: params.maxPrice ? Number(params.maxPrice) : undefined,
+      endingSoon: params.endingSoon === 'true',
+      buyNowOnly: params.buyNowOnly === 'true',
+      newListings: params.newListings === 'true',
+      sortBy,
+      page: params.page ? Number(params.page) : 1,
+      limit: 12,
+      view: params.view || 'grid'
+    }
 
-  // Fetch data in parallel with optimized queries
-  const [auctionsData, categories, conditions] = await Promise.all([
-    getAuctions(filters),
-    getCategories(),
-    getConditions()
-  ])
+    // Fetch data in parallel with optimized queries
+    const [auctionsData, categories, conditions] = await Promise.all([
+      getAuctions(filters),
+      getCategories(),
+      getConditions()
+    ])
 
-  return (
-    <>
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Filters Sidebar */}
-        <div className="lg:w-64 flex-shrink-0">
-          <AuctionFiltersWrapper
-            categories={categories}
-            conditions={conditions}
-            currentFilters={filters}
-          />
+    return (
+      <>
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Filters Sidebar */}
+          <div className="lg:w-64 flex-shrink-0">
+            <AuctionFiltersWrapper
+              categories={categories || []}
+              conditions={conditions || []}
+              currentFilters={filters}
+            />
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1">
+            {/* Search and Sort Bar */}
+            <AuctionsSearch currentFilters={filters} />
+
+            {/* Auctions List */}
+            <AuctionsList
+              auctions={(auctionsData?.auctions || []) as any}
+              pagination={auctionsData?.pagination || {
+                page: 1,
+                limit: 12,
+                total: 0,
+                totalPages: 0,
+                hasNext: false,
+                hasPrev: false
+              }}
+              currentFilters={filters}
+            />
+          </div>
         </div>
-
-        {/* Main Content */}
-        <div className="flex-1">
-          {/* Search and Sort Bar */}
-          <AuctionsSearch currentFilters={filters} />
-
-          {/* Auctions List */}
-          <AuctionsList
-            auctions={auctionsData.auctions as any}
-            pagination={auctionsData.pagination}
-            currentFilters={filters}
-          />
-        </div>
-      </div>
-    </>
-  )
+      </>
+    )
+  } catch (error) {
+    console.error('Error in AuctionsContent:', error)
+    // Re-throw to trigger error boundary
+    throw error
+  }
 }
 
 export default async function AuctionsPage({ searchParams }: AuctionsPageProps) {

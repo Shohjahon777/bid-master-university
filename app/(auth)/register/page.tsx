@@ -343,14 +343,7 @@ export default function RegisterPage() {
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel className="text-sm font-normal">
-                          I agree to the{' '}
-                          <Link href="/terms" className="text-blue-600 hover:text-blue-500 underline">
-                            Terms of Service
-                          </Link>{' '}
-                          and{' '}
-                          <Link href="/privacy" className="text-blue-600 hover:text-blue-500 underline">
-                            Privacy Policy
-                          </Link>
+                          I agree to the Terms of Service and Privacy Policy
                         </FormLabel>
                         <FormMessage />
                       </div>

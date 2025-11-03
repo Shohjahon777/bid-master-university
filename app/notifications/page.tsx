@@ -4,6 +4,8 @@ import { NotificationType } from '@prisma/client'
 import { getNotifications } from '@/lib/notifications'
 import { NotificationsClient } from './notifications-client'
 
+export const dynamic = 'force-dynamic'
+
 interface NotificationsPageProps {
   searchParams: Promise<{
     filter?: 'all' | 'unread' | 'bids' | 'auctions' | 'system'

@@ -3,6 +3,8 @@ import { getCurrentUser } from '@/lib/auth'
 import { getUsers } from './actions'
 import { UsersManagementClient } from './users-management-client'
 
+export const dynamic = 'force-dynamic'
+
 interface UsersPageProps {
   searchParams: {
     search?: string

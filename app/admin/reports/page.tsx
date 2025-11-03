@@ -3,6 +3,8 @@ import { getCurrentUser } from '@/lib/auth'
 import { getReports } from './actions'
 import { ReportsClient } from './reports-client'
 
+export const dynamic = 'force-dynamic'
+
 interface ReportsPageProps {
   searchParams: {
     status?: string

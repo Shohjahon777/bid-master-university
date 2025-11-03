@@ -1,6 +1,8 @@
 import { MyAuctionsPageClient } from './my-auctions-client'
 import { getUserAuctions } from '@/lib/actions/dashboard'
 
+export const dynamic = 'force-dynamic'
+
 export default async function MyAuctionsPage() {
   // Fetch all user auctions
   const [activeAuctions, endedAuctions, cancelledAuctions] = await Promise.all([

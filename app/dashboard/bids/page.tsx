@@ -3,6 +3,8 @@ import { getCurrentUser } from '@/lib/auth'
 import { getUserBids, UserBid } from '@/lib/actions/dashboard'
 import { MyBidsClient } from './bids-client'
 
+export const dynamic = 'force-dynamic'
+
 export default async function MyBidsPage() {
   const user = await getCurrentUser()
   

@@ -3,6 +3,8 @@ import { getCurrentUser } from '@/lib/auth'
 import { getConversations } from './actions'
 import { MessagesClient } from './messages-client'
 
+export const dynamic = 'force-dynamic'
+
 export default async function MessagesPage() {
   const user = await getCurrentUser()
 

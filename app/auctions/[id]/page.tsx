@@ -8,6 +8,8 @@ import { ImageCarousel } from '@/components/image-carousel'
 import { SellerCard } from '@/components/seller-card'
 import { AuctionCountdown } from '@/components/auction-countdown'
 import { AuctionDetailSkeleton } from '@/components/skeletons/auction-detail-skeleton'
+import { isInWatchlist } from '@/lib/actions/watchlist'
+import { getCurrentUser } from '@/lib/auth'
 
 // Lazy load heavy components
 const BidForm = dynamic(() => import('@/components/bid-form').then(mod => ({ default: mod.BidForm })), {
@@ -35,12 +37,17 @@ const SimilarAuctions = dynamic(() => import('@/components/similar-auctions').th
     </div>
   )
 })
+
+const WatchlistToggle = dynamic(() => import('@/components/watchlist-toggle').then(mod => ({ default: mod.WatchlistToggle })), {
+  ssr: true,
+  loading: () => <div className="h-9 w-full bg-muted animate-pulse rounded-md" />
+})
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, getAuctionStatusText, isAuctionActive, isAuctionEnded } from '@/lib/utils'
 import { AuctionWithRelations } from '@/types'
-import { ArrowLeft, Share2, Heart } from 'lucide-react'
+import { ArrowLeft, Share2 } from 'lucide-react'
 import Link from 'next/link'
 
 interface AuctionDetailPageProps {
@@ -81,6 +88,18 @@ export default async function AuctionDetailPage({ params }: AuctionDetailPagePro
   const isActive = isAuctionActive(auctionForUtils)
   const isEnded = isAuctionEnded(auctionForUtils)
   const statusText = getAuctionStatusText(auctionForUtils)
+  
+  // Check if auction is in watchlist (for authenticated users)
+  let inWatchlist = false
+  try {
+    const user = await getCurrentUser()
+    if (user) {
+      inWatchlist = await isInWatchlist(id)
+    }
+  } catch (error) {
+    // If not authenticated or error, default to false
+    inWatchlist = false
+  }
   
   // Generate structured data
   const productSchema = generateProductSchema(auction as any)
@@ -234,10 +253,13 @@ export default async function AuctionDetailPage({ params }: AuctionDetailPagePro
               <CardContent className="space-y-4">
                 {/* Action Buttons */}
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Heart className="w-4 h-4 mr-2" />
-                    Watch
-                  </Button>
+                  <WatchlistToggle 
+                    auctionId={id}
+                    isInWatchlist={inWatchlist}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                  />
                   <Button variant="outline" size="sm" className="flex-1">
                     <Share2 className="w-4 h-4 mr-2" />
                     Share

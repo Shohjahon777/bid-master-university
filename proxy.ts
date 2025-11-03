@@ -142,13 +142,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Handle root path
+  // Handle root path - always allow access to home page
   if (pathname === '/') {
-    // If user is authenticated, redirect to auctions
-    if (session) {
-      return NextResponse.redirect(new URL('/auctions', request.url))
-    }
-    // If not authenticated, show landing page
     return NextResponse.next()
   }
 

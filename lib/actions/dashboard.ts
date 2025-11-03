@@ -55,13 +55,65 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     }
   }
 
-  // In a real app, you would fetch this data from your database
-  // For now, we'll return mock data
-  return {
-    activeAuctions: 12,
-    totalBidsReceived: 47,
-    itemsWon: 8,
-    totalEarnings: 2340
+  try {
+    // Fetch real data from database
+    const [activeAuctions, allAuctions, wonAuctions, bidsReceived] = await Promise.all([
+      // Count active auctions created by user
+      db.auction.count({
+        where: {
+          userId: user.id,
+          status: AuctionStatus.ACTIVE
+        }
+      }),
+      // Get all auctions to calculate earnings
+      db.auction.findMany({
+        where: {
+          userId: user.id,
+          status: AuctionStatus.ENDED
+        },
+        include: {
+          _count: {
+            select: { bids: true }
+          }
+        }
+      }),
+      // Count auctions won by user
+      db.auction.count({
+        where: {
+          winnerId: user.id,
+          status: AuctionStatus.ENDED
+        }
+      }),
+      // Count total bids on user's auctions
+      db.bid.count({
+        where: {
+          auction: {
+            userId: user.id
+          }
+        }
+      })
+    ])
+
+    // Calculate total earnings from completed auctions
+    const totalEarnings = allAuctions.reduce((sum, auction) => {
+      return sum + Number(auction.currentPrice)
+    }, 0)
+
+    return {
+      activeAuctions,
+      totalBidsReceived: bidsReceived,
+      itemsWon: wonAuctions,
+      totalEarnings
+    }
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error)
+    // Return zeros on error instead of crashing
+    return {
+      activeAuctions: 0,
+      totalBidsReceived: 0,
+      itemsWon: 0,
+      totalEarnings: 0
+    }
   }
 }
 
@@ -73,49 +125,51 @@ export async function getActiveAuctions(limit: number = 4): Promise<ActiveAuctio
     return []
   }
 
-  // Mock data - in a real app, this would come from your database
-  return [
-    {
-      id: "1",
-      title: "Vintage MacBook Pro 13\"",
-      currentBid: 850,
-      bids: 12,
-      timeLeft: "2d 14h",
-      status: "active" as const,
-      views: 156,
-      imageUrl: "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
-    },
-    {
-      id: "2",
-      title: "Nintendo Switch OLED",
-      currentBid: 280,
-      bids: 8,
-      timeLeft: "1d 8h",
-      status: "active" as const,
-      views: 89,
-      imageUrl: "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
-    },
-    {
-      id: "3",
-      title: "Designer Backpack",
-      currentBid: 120,
-      bids: 5,
-      timeLeft: "6h 23m",
-      status: "ending" as const,
-      views: 67,
-      imageUrl: "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
-    },
-    {
-      id: "4",
-      title: "Gaming Chair",
-      currentBid: 180,
-      bids: 3,
-      timeLeft: "3d 2h",
-      status: "active" as const,
-      views: 45,
-      imageUrl: "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
-    }
-  ].slice(0, limit)
+  try {
+    const auctions = await db.auction.findMany({
+      where: {
+        userId: user.id,
+        status: AuctionStatus.ACTIVE
+      },
+      include: {
+        _count: {
+          select: { bids: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit
+    })
+
+    const now = new Date()
+    return auctions.map(auction => {
+      const timeRemaining = auction.endTime.getTime() - now.getTime()
+      const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24))
+      const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+      const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60))
+      
+      const timeLeft = days > 0 
+        ? `${days}d ${hours}h` 
+        : hours > 0 
+        ? `${hours}h ${minutes}m` 
+        : `${minutes}m`
+      
+      const isEndingSoon = timeRemaining < 24 * 60 * 60 * 1000 // Less than 24 hours
+      
+      return {
+        id: auction.id,
+        title: auction.title,
+        currentBid: Number(auction.currentPrice),
+        bids: auction._count.bids,
+        timeLeft,
+        status: isEndingSoon ? "ending" as const : "active" as const,
+        views: 0, // We don't track views yet
+        imageUrl: auction.images[0] || "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching active auctions:', error)
+    return []
+  }
 }
 
 export async function getRecentBids(limit: number = 5): Promise<RecentBid[]> {
@@ -126,89 +180,95 @@ export async function getRecentBids(limit: number = 5): Promise<RecentBid[]> {
     return []
   }
 
-  // Mock data - in a real app, this would come from your database
-  return [
-    {
-      id: "1",
-      auctionTitle: "iPhone 15 Pro Max",
-      auctionId: "auction-1",
-      bidAmount: 950,
-      status: "outbid" as const,
-      timeAgo: "2 hours ago",
-      auctionImageUrl: "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
-    },
-    {
-      id: "2",
-      auctionTitle: "Gaming Chair - Ergonomic",
-      auctionId: "auction-2",
-      bidAmount: 180,
-      status: "winning" as const,
-      timeAgo: "5 hours ago",
-      auctionImageUrl: "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
-    },
-    {
-      id: "3",
-      auctionTitle: "Textbook Bundle - Computer Science",
-      auctionId: "auction-3",
-      bidAmount: 45,
-      status: "won" as const,
-      timeAgo: "1 day ago",
-      auctionImageUrl: "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
-    },
-    {
-      id: "4",
-      auctionTitle: "Vintage Camera Collection",
-      auctionId: "auction-4",
-      bidAmount: 320,
-      status: "outbid" as const,
-      timeAgo: "2 days ago",
-      auctionImageUrl: "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
-    },
-    {
-      id: "5",
-      auctionTitle: "Wireless Headphones",
-      auctionId: "auction-5",
-      bidAmount: 85,
-      status: "winning" as const,
-      timeAgo: "3 days ago",
-      auctionImageUrl: "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
-    }
-  ].slice(0, limit)
+  try {
+    const userBids = await getUserBids()
+    
+    // Get most recent bids and format them
+    const recentBids = userBids.slice(0, limit)
+    
+    return recentBids.map(bid => {
+      const timeAgo = formatTimeAgo(bid.createdAt)
+      
+      return {
+        id: bid.id,
+        auctionTitle: bid.auction.title,
+        auctionId: bid.auctionId,
+        bidAmount: bid.amount,
+        status: bid.status,
+        timeAgo,
+        auctionImageUrl: bid.auction.images[0] || "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching recent bids:', error)
+    return []
+  }
+}
+
+// Helper function to format time ago
+function formatTimeAgo(timestamp: string): string {
+  const now = new Date()
+  const time = new Date(timestamp)
+  const diffInMs = now.getTime() - time.getTime()
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60))
+  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60))
+  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
+  
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} minute${diffInMinutes !== 1 ? 's' : ''} ago`
+  } else if (diffInHours < 24) {
+    return `${diffInHours} hour${diffInHours !== 1 ? 's' : ''} ago`
+  } else {
+    return `${diffInDays} day${diffInDays !== 1 ? 's' : ''} ago`
+  }
 }
 
 export async function getEndingSoonAuctions(limit: number = 3): Promise<EndingSoonAuction[]> {
   const user = await getCurrentUser()
   if (!user) {
-    throw new Error("Unauthorized")
+    return []
   }
 
-  // Mock data - in a real app, this would come from your database
-  return [
-    {
-      id: "1",
-      title: "Designer Backpack",
-      currentBid: 120,
-      timeLeft: "6h 23m",
-      bids: 5,
-      imageUrl: "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
-    },
-    {
-      id: "2",
-      title: "Vintage Watch",
-      currentBid: 450,
-      timeLeft: "12h 15m",
-      bids: 8,
-      imageUrl: "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
-    },
-    {
-      id: "3",
-      title: "Gaming Keyboard",
-      currentBid: 95,
-      timeLeft: "18h 42m",
-      bids: 3,
-      imageUrl: "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
-    }
-  ].slice(0, limit)
+  try {
+    const now = new Date()
+    const twentyFourHoursFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+    
+    const auctions = await db.auction.findMany({
+      where: {
+        status: AuctionStatus.ACTIVE,
+        endTime: {
+          gte: now,
+          lte: twentyFourHoursFromNow
+        }
+      },
+      include: {
+        _count: {
+          select: { bids: true }
+        }
+      },
+      orderBy: { endTime: 'asc' },
+      take: limit
+    })
+
+    return auctions.map(auction => {
+      const timeRemaining = auction.endTime.getTime() - now.getTime()
+      const hours = Math.floor(timeRemaining / (1000 * 60 * 60))
+      const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60))
+      const timeLeft = `${hours}h ${minutes}m`
+      
+      return {
+        id: auction.id,
+        title: auction.title,
+        currentBid: Number(auction.currentPrice),
+        timeLeft,
+        bids: auction._count.bids,
+        imageUrl: auction.images[0] || "https://placehold.co/300x200/e5e7eb/9ca3af?text=No+Image"
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching ending soon auctions:', error)
+    return []
+  }
 }
 
 // Get user's auctions by status

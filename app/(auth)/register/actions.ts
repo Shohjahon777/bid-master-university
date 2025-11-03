@@ -17,31 +17,7 @@ const registerSchema = z.object({
   email: z
     .string()
     .min(1, 'Email is required')
-    .email('Please enter a valid email address')
-    .refine((email) => {
-      const domain = email.split('@')[1]?.toLowerCase()
-      if (!domain) return false
-      
-      // Check for Central Asian University specifically
-      if (domain === 'centralasian.uz' || domain === 'uz.edu') {
-        return true
-      }
-      
-      // Check for other university domains
-      const validDomains = [
-        'edu',
-        'ac.uk',
-        'edu.au',
-        'ac.in',
-        'edu.sg',
-        'ac.za',
-        'edu.tr',
-        'ac.jp',
-        'edu.br',
-        'ac.ca'
-      ]
-      return validDomains.some(uniDomain => domain?.endsWith(uniDomain))
-    }, 'Please use your university email address (e.g., studentID@centralasian.uz)'),
+    .email('Please enter a valid email address'),
   password: z
     .string()
     .min(8, 'Password must be at least 8 characters')
@@ -66,36 +42,6 @@ export async function registerUser(formData: FormData) {
 
     // Validate form data
     const validatedData = registerSchema.parse(rawData)
-
-    // Validate email domain before attempting signup
-    const domain = validatedData.email.split('@')[1]?.toLowerCase()
-    const validDomains = [
-      'centralasian.uz',
-      'uz.edu',
-      'edu',
-      'ac.uk',
-      'edu.au',
-      'ac.in',
-      'edu.sg',
-      'ac.za',
-      'edu.tr',
-      'ac.jp',
-      'edu.br',
-      'ac.ca'
-    ]
-    
-    const isValidDomain = domain && (
-      domain === 'centralasian.uz' || 
-      domain === 'uz.edu' ||
-      validDomains.some(validDomain => domain.endsWith('.' + validDomain))
-    )
-    
-    if (!isValidDomain) {
-      return {
-        success: false,
-        error: 'Please use a valid university email address (e.g., studentID@centralasian.uz)'
-      }
-    }
 
     // 1. Create user in Supabase Auth
     // Try with the original email first

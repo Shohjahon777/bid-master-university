@@ -140,36 +140,6 @@ export async function requireAdmin(): Promise<AuthUser> {
  */
 export async function signUp({ email, password, name, university }: SignUpData): Promise<{ success: boolean; user?: AuthUser; error?: string }> {
   try {
-    // Validate email domain before attempting signup
-    const domain = email.split('@')[1]?.toLowerCase()
-    const validDomains = [
-      'centralasian.uz',
-      'uz.edu',
-      'edu',
-      'ac.uk',
-      'edu.au',
-      'ac.in',
-      'edu.sg',
-      'ac.za',
-      'edu.tr',
-      'ac.jp',
-      'edu.br',
-      'ac.ca'
-    ]
-    
-    const isValidDomain = domain && (
-      domain === 'centralasian.uz' || 
-      domain === 'uz.edu' ||
-      validDomains.some(validDomain => domain.endsWith('.' + validDomain))
-    )
-    
-    if (!isValidDomain) {
-      return {
-        success: false,
-        error: 'Please use a valid university email address (e.g., studentID@centralasian.uz)'
-      }
-    }
-
     // 1. Create user in Supabase Auth
     // Try with the original email first
     let { data: authData, error: authError } = await supabase.auth.signUp({

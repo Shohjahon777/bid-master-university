@@ -42,19 +42,7 @@ const registerSchema = z.object({
   email: z
     .string()
     .min(1, 'Email is required')
-    .email('Please enter a valid email address')
-    .refine((email) => {
-      const domain = email.split('@')[1]?.toLowerCase()
-      if (!domain) return false
-      
-      // Check for Central Asian University specifically
-      if (domain === 'centralasian.uz' || domain === 'uz.edu') {
-        return true
-      }
-      
-      // Check for other university domains
-      return UNIVERSITY_DOMAINS.some(uniDomain => domain?.endsWith(uniDomain))
-    }, 'Please use your university email address (e.g., studentID@centralasian.uz)'),
+    .email('Please enter a valid email address'),
   password: z
     .string()
     .min(8, 'Password must be at least 8 characters')

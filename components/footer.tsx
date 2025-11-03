@@ -6,28 +6,28 @@ import { Button } from "@/components/ui/button"
 
 const footerLinks = {
   about: [
-    { name: "About Us", href: "/about" },
+    { name: "About Us", href: null },
     { name: "How It Works", href: "/how-it-works" },
-    { name: "Success Stories", href: "/success-stories" },
-    { name: "Careers", href: "/careers" },
+    { name: "Success Stories", href: null },
+    { name: "Careers", href: null },
   ],
   support: [
-    { name: "Help Center", href: "/help" },
-    { name: "Contact Us", href: "/contact" },
-    { name: "Report Issue", href: "/report" },
-    { name: "Feedback", href: "/feedback" },
+    { name: "Help Center", href: null },
+    { name: "Contact Us", href: null },
+    { name: "Report Issue", href: null },
+    { name: "Feedback", href: null },
   ],
   legal: [
-    { name: "Terms of Service", href: "/terms" },
-    { name: "Privacy Policy", href: "/privacy" },
-    { name: "Cookie Policy", href: "/cookies" },
-    { name: "User Agreement", href: "/agreement" },
+    { name: "Terms of Service", href: null },
+    { name: "Privacy Policy", href: null },
+    { name: "Cookie Policy", href: null },
+    { name: "User Agreement", href: null },
   ],
   university: [
-    { name: "University Portal", href: "/university" },
-    { name: "Student Services", href: "/services" },
-    { name: "Academic Calendar", href: "/calendar" },
-    { name: "Campus Map", href: "/campus" },
+    { name: "University Portal", href: null },
+    { name: "Student Services", href: null },
+    { name: "Academic Calendar", href: null },
+    { name: "Campus Map", href: null },
   ],
 }
 
@@ -85,13 +85,19 @@ export function Footer() {
             <ul className="space-y-3">
               {footerLinks.about.map((link) => (
                 <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    prefetch={false}
-                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    {link.name}
-                  </Link>
+                  {link.href ? (
+                    <Link
+                      href={link.href}
+                      prefetch={false}
+                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      {link.name}
+                    </Link>
+                  ) : (
+                    <span className="text-sm text-muted-foreground cursor-default opacity-60">
+                      {link.name}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -103,13 +109,19 @@ export function Footer() {
             <ul className="space-y-3">
               {footerLinks.support.map((link) => (
                 <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    prefetch={false}
-                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    {link.name}
-                  </Link>
+                  {link.href ? (
+                    <Link
+                      href={link.href}
+                      prefetch={false}
+                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      {link.name}
+                    </Link>
+                  ) : (
+                    <span className="text-sm text-muted-foreground cursor-default opacity-60">
+                      {link.name}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -121,13 +133,19 @@ export function Footer() {
             <ul className="space-y-3">
               {footerLinks.legal.map((link) => (
                 <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    prefetch={false}
-                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    {link.name}
-                  </Link>
+                  {link.href ? (
+                    <Link
+                      href={link.href}
+                      prefetch={false}
+                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      {link.name}
+                    </Link>
+                  ) : (
+                    <span className="text-sm text-muted-foreground cursor-default opacity-60">
+                      {link.name}
+                    </span>
+                  )}
                 </li>
               ))}
               <li className="pt-2">
@@ -135,13 +153,19 @@ export function Footer() {
                 <ul className="space-y-2">
                   {footerLinks.university.map((link) => (
                     <li key={link.name}>
-                      <Link
-                        href={link.href}
-                        prefetch={false}
-                        className="text-xs text-muted-foreground hover:text-primary transition-colors"
-                      >
-                        {link.name}
-                      </Link>
+                      {link.href ? (
+                        <Link
+                          href={link.href}
+                          prefetch={false}
+                          className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          {link.name}
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-muted-foreground cursor-default opacity-60">
+                          {link.name}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>

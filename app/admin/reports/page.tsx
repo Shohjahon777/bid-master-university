@@ -6,9 +6,9 @@ import { ReportsClient } from './reports-client'
 export const dynamic = 'force-dynamic'
 
 interface ReportsPageProps {
-  searchParams: {
+  searchParams: Promise<{
     status?: string
-  }
+  }>
 }
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
@@ -28,7 +28,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     redirect('/dashboard')
   }
 
-  const reports = await getReports(searchParams.status as any)
+  const params = await searchParams
+  const reports = await getReports(params.status as any)
 
   return <ReportsClient initialReports={reports} />
 }

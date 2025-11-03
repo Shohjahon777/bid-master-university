@@ -6,14 +6,14 @@ import { UsersManagementClient } from './users-management-client'
 export const dynamic = 'force-dynamic'
 
 interface UsersPageProps {
-  searchParams: {
+  searchParams: Promise<{
     search?: string
     status?: string
     university?: string
     page?: string
     sortBy?: string
     sortOrder?: string
-  }
+  }>
 }
 
 export default async function UsersManagementPage({ searchParams }: UsersPageProps) {
@@ -33,14 +33,15 @@ export default async function UsersManagementPage({ searchParams }: UsersPagePro
     redirect('/dashboard')
   }
 
+  const params = await searchParams
   const usersData = await getUsers({
-    search: searchParams.search,
-    status: searchParams.status as any,
-    university: searchParams.university,
-    page: searchParams.page ? parseInt(searchParams.page) : 1,
+    search: params.search,
+    status: params.status as any,
+    university: params.university,
+    page: params.page ? parseInt(params.page) : 1,
     limit: 50,
-    sortBy: (searchParams.sortBy as any) || 'createdAt',
-    sortOrder: (searchParams.sortOrder as any) || 'desc'
+    sortBy: (params.sortBy as any) || 'createdAt',
+    sortOrder: (params.sortOrder as any) || 'desc'
   })
 
   return <UsersManagementClient initialData={usersData} />

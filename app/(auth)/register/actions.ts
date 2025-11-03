@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase-server'
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -43,7 +43,10 @@ export async function registerUser(formData: FormData) {
     // Validate form data
     const validatedData = registerSchema.parse(rawData)
 
-    // 1. Create user in Supabase Auth
+    // 1. Create Supabase client for server-side
+    const supabase = await createClient()
+
+    // 2. Create user in Supabase Auth
     // Try with the original email first
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     let { data: authData, error: authError } = await supabase.auth.signUp({
@@ -106,7 +109,7 @@ export async function registerUser(formData: FormData) {
       }
     }
 
-    // 2. Create user record in database
+    // 3. Create user record in database
     const dbUser = await db.user.create({
       data: {
         id: authData.user.id,
@@ -118,12 +121,12 @@ export async function registerUser(formData: FormData) {
       }
     })
 
-    // 3. Send welcome email (don't await to not block registration)
+    // 4. Send welcome email (don't await to not block registration)
     sendWelcomeEmail(dbUser).catch((error) => {
       console.error('Error sending welcome email:', error)
     })
 
-    // 4. Revalidate relevant paths
+    // 5. Revalidate relevant paths
     revalidatePath('/')
 
     return { 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { BidWithUser } from '@/types'
 import { formatCurrency, formatRelativeTime, getInitials } from '@/lib/utils'
-import { getBidHistory } from '@/lib/actions/bids'
 import { supabase } from '@/lib/supabase'
 import { ChevronDown, ChevronUp, Trophy, Clock } from 'lucide-react'
 
@@ -19,16 +18,50 @@ interface BidHistoryProps {
   className?: string
 }
 
+type SerializedBid = Omit<BidWithUser, 'createdAt' | 'amount'> & {
+  amount: number
+  createdAt: string
+}
+
 export function BidHistory({ auctionId, initialBids, currentUserId, className }: BidHistoryProps) {
-  const [bids, setBids] = useState<BidWithUser[]>(initialBids)
+  const normalizedInitialBids = useMemo<SerializedBid[]>(() => {
+    return initialBids.map((bid) => ({
+      ...bid,
+      amount: Number(bid.amount),
+      createdAt: typeof bid.createdAt === 'string' ? bid.createdAt : bid.createdAt.toISOString()
+    }))
+  }, [initialBids])
+
+  const [bids, setBids] = useState<SerializedBid[]>(normalizedInitialBids)
   const [isExpanded, setIsExpanded] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [showAll, setShowAll] = useState(false)
 
+  useEffect(() => {
+    setBids(normalizedInitialBids)
+  }, [normalizedInitialBids])
+
+  const fetchBids = useCallback(
+    async (limit: number) => {
+      const response = await fetch(`/api/auctions/${auctionId}/bids?limit=${limit}`, {
+        method: 'GET',
+        cache: 'no-store'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch bid history')
+      }
+
+      const payload = (await response.json()) as { bids?: SerializedBid[] }
+      return payload.bids ?? []
+    },
+    [auctionId]
+  )
+
   // Real-time subscription for new bids
   useEffect(() => {
     const channel = supabase
-      .channel(`auction:${auctionId}`)
+      .channel(`auction-bids:${auctionId}`)
       .on(
         'postgres_changes',
         {
@@ -38,11 +71,24 @@ export function BidHistory({ auctionId, initialBids, currentUserId, className }:
           filter: `auctionId=eq.${auctionId}`
         },
         async (payload) => {
-          // Fetch the new bid with user data
-          const result = await getBidHistory(auctionId, 1)
-          if (result.success && result.bids && result.bids.length > 0) {
-            const newBid = result.bids[0]
-            setBids(prev => [newBid as any, ...prev])
+          const inserted = payload.new as { auctionId?: string } | null
+          if (inserted?.auctionId !== auctionId) {
+            return
+          }
+
+          try {
+            const latestBids = await fetchBids(1)
+            if (latestBids.length === 0) {
+              return
+            }
+
+            const latestBid = latestBids[0]
+            setBids((prev) => {
+              const filtered = prev.filter((bid) => bid.id !== latestBid.id)
+              return [latestBid, ...filtered]
+            })
+          } catch (error) {
+            console.error('Failed to refresh bid history after realtime update:', error)
           }
         }
       )
@@ -51,16 +97,14 @@ export function BidHistory({ auctionId, initialBids, currentUserId, className }:
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [auctionId])
+  }, [auctionId, fetchBids])
 
   const handleLoadMore = async () => {
     setIsLoading(true)
     try {
-      const result = await getBidHistory(auctionId, 20)
-      if (result.success && result.bids) {
-        setBids(result.bids as any)
-        setShowAll(true)
-      }
+      const extendedBids = await fetchBids(20)
+      setBids(extendedBids)
+      setShowAll(true)
     } catch (error) {
       console.error('Failed to load more bids:', error)
     } finally {

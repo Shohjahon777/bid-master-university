@@ -67,49 +67,49 @@ function RecentAuctionsLoading() {
 // Recent auctions section component
 async function RecentAuctionsSection() {
   try {
-    const auctions = await getRecentAuctions(6);
+  const auctions = await getRecentAuctions(6);
 
-    return (
-      <section className="py-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-12">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight text-foreground mb-4">
-                Recent Auctions
-              </h2>
-              <p className="text-lg text-muted-foreground">
-                Discover the latest items up for auction in your campus community
-              </p>
-            </div>
-            <Button asChild variant="outline">
-              <Link href="/auctions" className="flex items-center gap-2">
-                View All
-                <ArrowRight className="h-4 w-4" />
-              </Link>
+  return (
+    <section className="py-20">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between mb-12">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight text-foreground mb-4">
+              Recent Auctions
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              Discover the latest items up for auction in your campus community
+            </p>
+          </div>
+          <Button asChild variant="outline">
+            <Link href="/auctions" className="flex items-center gap-2">
+              View All
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+
+        {auctions.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {auctions.map((auction) => (
+              <AuctionCard key={auction.id} auction={auction} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <Gavel className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">No active auctions</h3>
+            <p className="text-muted-foreground mb-6">
+              Be the first to list an item and start the bidding!
+            </p>
+            <Button asChild>
+              <Link href="/auctions/new">Create First Auction</Link>
             </Button>
           </div>
-
-          {auctions.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {auctions.map((auction) => (
-                <AuctionCard key={auction.id} auction={auction} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <Gavel className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No active auctions</h3>
-              <p className="text-muted-foreground mb-6">
-                Be the first to list an item and start the bidding!
-              </p>
-              <Button asChild>
-                <Link href="/auctions/new">Create First Auction</Link>
-              </Button>
-            </div>
-          )}
-        </div>
-      </section>
-    );
+        )}
+      </div>
+    </section>
+  );
   } catch (error) {
     console.error('Error loading recent auctions:', error);
     return (

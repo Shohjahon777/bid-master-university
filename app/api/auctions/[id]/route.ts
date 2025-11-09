@@ -7,9 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    console.log('[API] Fetching auction:', id)
     const auction = await getAuctionById(id)
-    console.log('[API] Auction fetched:', auction ? 'success' : 'not found')
     
     if (!auction) {
       return NextResponse.json(
@@ -18,7 +16,6 @@ export async function GET(
       )
     }
 
-    console.log('[API] Returning auction data')
     // Serialize Date objects to ISO strings for JSON response
     const serialized = {
       ...auction,

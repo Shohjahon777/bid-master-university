@@ -111,9 +111,8 @@ export function isAuctionCancelled(auction: { status: AuctionStatus }): boolean 
 
 // Calculate minimum bid amount (current price + minimum increment)
 export function calculateMinimumBid(currentPrice: number): number {
-  // Minimum bid increment is 5% of current price or $1, whichever is higher
-  const increment = Math.max(currentPrice * 0.05, 1)
-  return Math.ceil((currentPrice + increment) * 100) / 100 // Round up to nearest cent
+  const increment = 0.01
+  return Math.ceil((currentPrice + increment) * 100) / 100
 }
 
 // Calculate bid increment based on current price

@@ -91,6 +91,7 @@ model Bid {
   @@index([auctionId])
   @@index([userId])
   @@index([createdAt])
+  @@index([auctionId, createdAt])
   @@map("bids")
 }
 

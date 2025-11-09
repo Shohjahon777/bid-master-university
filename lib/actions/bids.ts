@@ -106,20 +106,23 @@ export async function placeBid(auctionId: string, amount: number) {
       })
 
       // Update auction current price
-      await tx.auction.update({
+      const updatedAuction = await tx.auction.update({
         where: { id: auctionId },
-        data: { currentPrice: validatedData.amount }
+        data: { currentPrice: validatedData.amount },
+        select: {
+          id: true,
+          title: true,
+          images: true,
+          endTime: true,
+          currentPrice: true,
+          userId: true
+        }
       })
 
       // Get users for email notifications
       const previousBidder = previousHighestBidder && previousHighestBidder !== user.id
         ? await tx.user.findUnique({ where: { id: previousHighestBidder } })
         : null
-
-      // Get full auction details for email
-      const fullAuction = await tx.auction.findUnique({
-        where: { id: auctionId }
-      })
 
       // Create notifications
       const notifications = []
@@ -145,7 +148,7 @@ export async function placeBid(auctionId: string, amount: number) {
       // Create all notifications
       await createNotifications(tx, notifications)
 
-      return { bid, previousBidder, auction: fullAuction }
+      return { bid, previousBidder, auction: updatedAuction }
     })
 
     // Send email notifications (fire and forget)

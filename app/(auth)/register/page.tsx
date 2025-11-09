@@ -69,20 +69,7 @@ const UNIVERSITIES = [
   'Central Asian University (CAU)',
   'Harvard University',
   'Stanford University',
-  'MIT',
-  'University of California, Berkeley',
-  'University of Oxford',
-  'University of Cambridge',
-  'Imperial College London',
-  'University of Toronto',
-  'University of Melbourne',
-  'National University of Singapore',
-  'University of Tokyo',
-  'ETH Zurich',
-  'Sorbonne University',
-  'Technical University of Munich',
-  'University of Sydney',
-  'Other'
+  'MIT'
 ]
 
 export default function RegisterPage() {

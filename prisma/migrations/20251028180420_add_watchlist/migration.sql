@@ -23,3 +23,4 @@ ALTER TABLE "watchlist" ADD CONSTRAINT "watchlist_userId_fkey" FOREIGN KEY ("use
 -- AddForeignKey
 ALTER TABLE "watchlist" ADD CONSTRAINT "watchlist_auctionId_fkey" FOREIGN KEY ("auctionId") REFERENCES "auctions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+

@@ -1,7 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { db } from '@/lib/db'
 
 // Protected routes that require authentication
 const protectedRoutes = [
@@ -9,7 +8,8 @@ const protectedRoutes = [
   '/dashboard',
   '/profile',
   '/notifications',
-  '/messages'
+  '/messages',
+  '/admin'
 ]
 
 // Admin routes that require admin role
@@ -93,24 +93,16 @@ export async function proxy(request: NextRequest) {
   // Handle admin routes - require authentication and admin role
   if (isAdminRoute) {
     if (!session || !user) {
-      // Redirect to login with return URL
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('redirectTo', pathname)
       return NextResponse.redirect(loginUrl)
     }
-    
-    // Check if user has admin role
-    try {
-      const dbUser = await db.user.findUnique({
-        where: { id: user.id }
-      })
-      
-      if (!dbUser || (dbUser as any).role !== 'ADMIN') {
-        // Redirect to dashboard if not admin
-        return NextResponse.redirect(new URL('/dashboard', request.url))
-      }
-    } catch (error) {
-      console.error('Error checking admin role:', error)
+
+    const role =
+      (user.app_metadata?.role as string | undefined)?.toUpperCase() ??
+      (user.user_metadata?.role as string | undefined)?.toUpperCase()
+
+    if (role !== 'ADMIN') {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }

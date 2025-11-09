@@ -1,22 +1,26 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { BidWithUser } from '@/types'
 import { toast } from 'sonner'
 
-interface BidUpdateData {
+type SerializedBidWithUser = Omit<BidWithUser, 'createdAt' | 'amount'> & {
+  amount: number
+  createdAt: string
+}
+
+interface BidSnapshot {
   currentPrice: number
-  latestBid: BidWithUser | null
+  latestBid: SerializedBidWithUser | null
   bidCount: number
+}
+
+interface BidUpdateData extends BidSnapshot {
   isOutbid: boolean
 }
 
-interface UseBidUpdatesReturn {
-  currentPrice: number
-  latestBid: BidWithUser | null
-  bidCount: number
-  isOutbid: boolean
+interface UseBidUpdatesReturn extends BidUpdateData {
   isLoading: boolean
   error: string | null
 }
@@ -30,62 +34,106 @@ export function useBidUpdates(auctionId: string, currentUserId?: string): UseBid
   })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const previousBidRef = useRef<SerializedBidWithUser | null>(null)
 
-  // Fetch initial auction data
+  const fetchSnapshot = useCallback(async (): Promise<BidSnapshot | null> => {
+    const response = await fetch(`/api/auctions/${auctionId}`, {
+      method: 'GET',
+      cache: 'no-store'
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch auction data')
+    }
+
+    const auction = await response.json()
+
+    const latestBid = auction.bids?.[0]
+      ? ({
+          ...auction.bids[0],
+          amount: Number(auction.bids[0].amount),
+          createdAt:
+            typeof auction.bids[0].createdAt === 'string'
+              ? auction.bids[0].createdAt
+              : new Date(auction.bids[0].createdAt).toISOString()
+        } as SerializedBidWithUser)
+      : null
+
+    return {
+      currentPrice: Number(auction.currentPrice),
+      latestBid,
+      bidCount: auction.bidCount ?? (Array.isArray(auction.bids) ? auction.bids.length : 0)
+    }
+  }, [auctionId])
+
+  const applySnapshot = useCallback(
+    (snapshot: BidSnapshot, options: { fromRealtime?: boolean } = {}) => {
+      const { fromRealtime = false } = options
+      const previousBid = previousBidRef.current
+      const latestBid = snapshot.latestBid
+
+      const wasUserOutbid = Boolean(
+        fromRealtime &&
+          currentUserId &&
+          previousBid &&
+          previousBid.userId === currentUserId &&
+          latestBid &&
+          latestBid.userId !== currentUserId
+      )
+
+      setData({
+        currentPrice: snapshot.currentPrice,
+        latestBid,
+        bidCount: snapshot.bidCount,
+        isOutbid: wasUserOutbid
+      })
+
+      if (
+        fromRealtime &&
+        latestBid &&
+        latestBid.userId !== currentUserId &&
+        latestBid.id !== previousBid?.id
+      ) {
+        toast.success(`New bid placed! Current price: $${snapshot.currentPrice.toFixed(2)}`)
+      }
+
+      previousBidRef.current = latestBid
+      setError(null)
+    },
+    [currentUserId]
+  )
+
   const fetchAuctionData = useCallback(async () => {
     try {
-      const response = await fetch(`/api/auctions/${auctionId}`)
-      if (!response.ok) {
-        throw new Error('Failed to fetch auction data')
-      }
-      
-      const auction = await response.json()
-      setData({
-        currentPrice: Number(auction.currentPrice),
-        latestBid: auction.bids?.[0] || null,
-        bidCount: auction.bidCount || 0,
-        isOutbid: false
-      })
+      const snapshot = await fetchSnapshot()
+      if (!snapshot) return
+      applySnapshot(snapshot)
     } catch (err) {
       console.error('Error fetching auction data:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch auction data')
     } finally {
       setIsLoading(false)
     }
-  }, [auctionId])
+  }, [applySnapshot, fetchSnapshot])
 
-  // Handle new bid updates
-  const handleBidUpdate = useCallback((payload: any) => {
-    const newBid = payload.new as BidWithUser
-    
-    setData(prevData => {
-      const newPrice = Number(newBid.amount)
-      const wasUserOutbid = Boolean(currentUserId && 
-        prevData.latestBid?.userId === currentUserId && 
-        newBid.userId !== currentUserId)
-      
-      // Show toast for new bids
-      if (newBid.userId !== currentUserId) {
-        toast.success(`New bid placed! Current price: $${newPrice.toFixed(2)}`)
-      }
-      
-      return {
-        currentPrice: newPrice,
-        latestBid: newBid,
-        bidCount: prevData.bidCount + 1,
-        isOutbid: wasUserOutbid
-      }
-    })
-  }, [currentUserId])
+  const handleBidUpdate = useCallback(async () => {
+    try {
+      const snapshot = await fetchSnapshot()
+      if (!snapshot) return
+      applySnapshot(snapshot, { fromRealtime: true })
+    } catch (err) {
+      console.error('Error handling bid update:', err)
+      setError('Failed to process real-time update')
+    }
+  }, [applySnapshot, fetchSnapshot])
 
-  // Set up real-time subscription
   useEffect(() => {
-    if (!auctionId) return
+    if (!auctionId) {
+      return
+    }
 
-    // Fetch initial data
     fetchAuctionData()
 
-    // Set up real-time subscription
     const channel = supabase
       .channel(`auction-bids:${auctionId}`)
       .on(
@@ -96,7 +144,12 @@ export function useBidUpdates(auctionId: string, currentUserId?: string): UseBid
           table: 'bids',
           filter: `auctionId=eq.${auctionId}`
         },
-        handleBidUpdate
+        (payload) => {
+          const inserted = payload.new as { auctionId?: string } | null
+          if (inserted?.auctionId === auctionId) {
+            void handleBidUpdate()
+          }
+        }
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
@@ -107,7 +160,6 @@ export function useBidUpdates(auctionId: string, currentUserId?: string): UseBid
         }
       })
 
-    // Cleanup subscription on unmount
     return () => {
       supabase.removeChannel(channel)
     }

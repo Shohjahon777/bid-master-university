@@ -27,8 +27,6 @@ export async function getAuctions(params: {
   limit?: number
 }) {
   try {
-    console.log('🔍 getAuctions called with params:', JSON.stringify(params, null, 2))
-    
     const {
       search,
       category,
@@ -49,8 +47,6 @@ export async function getAuctions(params: {
     const where: any = {
       status: AuctionStatus.ACTIVE
     }
-    
-    console.log('📊 Database query where clause:', JSON.stringify(where, null, 2))
 
     // Search filter
     if (search) {
@@ -134,17 +130,6 @@ export async function getAuctions(params: {
     }
 
     // Get auctions
-    console.log('🔌 Attempting database connection...')
-    
-    // Test database connection first
-    try {
-      await db.$connect()
-      console.log('✅ Database connected successfully')
-    } catch (connectError) {
-      console.error('❌ Database connection failed:', connectError)
-      throw connectError
-    }
-    
     const [auctions, total] = await Promise.all([
       db.auction.findMany({
         where,
@@ -185,8 +170,6 @@ export async function getAuctions(params: {
       db.auction.count({ where })
     ])
     
-    console.log(`✅ Found ${total} total auctions, returning ${auctions.length} auctions`)
-
     // Serialize Decimal and Date fields
     const serializedAuctions = auctions.map(auction => ({
       ...auction,

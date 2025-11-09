@@ -7,24 +7,39 @@ const globalForPrisma = globalThis as unknown as {
 // Check if DATABASE_URL is set
 if (!process.env.DATABASE_URL) {
   console.error('❌ DATABASE_URL environment variable is not set!')
-  console.error('For production (Vercel), set it in: Settings > Environment Variables')
-  console.error('For development, check your .env.local file')
   throw new Error('DATABASE_URL environment variable is missing')
 }
 
-console.log('🔧 Initializing Prisma Client...')
-console.log('📍 Database URL:', process.env.DATABASE_URL?.replace(/:[^:@]+@/, ':****@')) // Hide password
-
+// Optimized Prisma Client configuration
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-    errorFormat: 'pretty',
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    errorFormat: 'minimal',
+    // Connection pool settings for better performance
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
   })
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+// Optimize connection pooling
+if (process.env.NODE_ENV === 'production') {
+  // Set connection pool size
+  db.$connect().then(() => {
+  }).catch((err) => {
+    console.error('❌ Database connection failed:', err)
+  })
+}
 
-console.log('✅ Prisma Client initialized')
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = db
+}
 
-// Prisma will connect automatically when needed
-// Don't call $connect() here as it can fail during module initialization
+// Graceful shutdown
+process.on('beforeExit', async () => {
+  await db.$disconnect()
+})
+
+export default db

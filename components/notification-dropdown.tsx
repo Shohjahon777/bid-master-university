@@ -150,7 +150,9 @@ export function NotificationDropdown({ userId }: NotificationDropdownProps) {
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('Subscribed to notifications for user:', userId)
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('Subscribed to notifications for user:', userId)
+          }
         } else if (status === 'CHANNEL_ERROR') {
           console.error('Error subscribing to notifications')
         }

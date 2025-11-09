@@ -429,3 +429,84 @@ export async function getMessages(conversationId: string) {
   }
 }
 
+export async function getMessageDetails(messageId: string) {
+  try {
+    const user = await requireAuth()
+
+    const message = await db.message.findUnique({
+      where: { id: messageId },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            verified: true
+          }
+        },
+        conversation: {
+          include: {
+            participants: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    avatar: true,
+                    verified: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!message) {
+      return { success: false, error: 'Message not found' }
+    }
+
+    const isParticipant = message.conversation.participants.some(
+      participant => participant.userId === user.id
+    )
+
+    if (!isParticipant) {
+      return { success: false, error: 'Not authorized to view this message' }
+    }
+
+    const otherParticipant = message.conversation.participants.find(
+      participant => participant.userId !== user.id
+    )?.user
+
+    return {
+      success: true,
+      message: {
+        id: message.id,
+        content: message.content,
+        senderId: message.senderId,
+        conversationId: message.conversationId,
+        read: message.read,
+        createdAt: message.createdAt.toISOString(),
+        sender: message.sender
+      },
+      conversation: {
+        id: message.conversationId,
+        otherUser: otherParticipant
+          ? {
+              id: otherParticipant.id,
+              name: otherParticipant.name,
+              avatar: otherParticipant.avatar,
+              verified: otherParticipant.verified
+            }
+          : null,
+        lastMessageAt: (message.conversation.lastMessageAt ?? message.createdAt).toISOString(),
+        createdAt: message.conversation.createdAt.toISOString()
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching message details:', error)
+    return { success: false, error: 'Failed to fetch message details' }
+  }
+}
+

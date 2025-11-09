@@ -15,7 +15,8 @@ import {
   LogOut,
   Gavel,
   Trophy,
-  Heart
+  Heart,
+  MessageCircle
 } from "lucide-react"
 import { useState, useEffect, lazy, Suspense } from "react"
 import { useTheme } from "next-themes"
@@ -129,6 +130,13 @@ export function Navbar() {
                   <NotificationDropdown userId={user.id} />
                 </Suspense>
 
+                <Button variant="ghost" size="icon" asChild className="h-9 w-9">
+                  <Link href="/messages">
+                    <MessageCircle className="h-4 w-4" />
+                    <span className="sr-only">Messages</span>
+                  </Link>
+                </Button>
+
                 {/* Create Auction Button */}
                 <Button asChild size="sm" className="hidden sm:flex">
                   <Link href="/auctions/new">
@@ -164,6 +172,12 @@ export function Navbar() {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/messages" className="flex items-center">
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        Messages
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/dashboard" className="flex items-center">
                         <User className="mr-2 h-4 w-4" />
@@ -286,12 +300,18 @@ export function Navbar() {
                   </Button>
                   <div className="grid grid-cols-2 gap-2">
                     <Button variant="outline" size="sm" asChild>
-                      <Link href="/my-auctions">My Auctions</Link>
+                      <Link href="/dashboard/auctions">My Auctions</Link>
                     </Button>
                     <Button variant="outline" size="sm" asChild>
-                      <Link href="/my-bids">My Bids</Link>
+                      <Link href="/dashboard/bids">My Bids</Link>
                     </Button>
                   </div>
+                  <Button variant="outline" size="sm" className="w-full" asChild>
+                    <Link href="/messages">
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Messages
+                    </Link>
+                  </Button>
                   <Button variant="outline" size="sm" className="w-full" onClick={handleLogout}>
                     <LogOut className="h-4 w-4 mr-2" />
                     Logout

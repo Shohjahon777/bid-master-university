@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Search, Send, User } from 'lucide-react'
 import { formatRelativeTime, getInitials } from '@/lib/utils'
-import { getOrCreateConversation, sendMessage, markAsRead, getMessages } from './actions'
+import { sendMessage, markAsRead, getMessages, getMessageDetails } from './actions'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -72,6 +72,10 @@ export function MessagesClient({ userId, initialConversations }: MessagesClientP
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const selectedConversationRef = useRef<string | null>(selectedConversationId)
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversationId
+  }, [selectedConversationId])
 
   // Filter conversations based on search
   const filteredConversations = conversations.filter(conv => {
@@ -122,66 +126,100 @@ export function MessagesClient({ userId, initialConversations }: MessagesClientP
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Subscribe to real-time message updates
   useEffect(() => {
-    if (!selectedConversationId) return
-
     const channel = supabase
-      .channel(`messages:${selectedConversationId}`)
+      .channel(`messages:user:${userId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'messages',
-          filter: `conversationId=eq.${selectedConversationId}`,
+          table: 'messages'
         },
-        async (payload: { new: Message }) => {
-          // Fetch updated messages
-          const result = await getMessages(selectedConversationId)
-          if (result.success) {
-            setMessages(result.messages || [])
-            
-            // Update conversations list with new message
-            setConversations(prev =>
-              prev.map(conv => {
-                if (conv.id === selectedConversationId) {
-                  const newMessage = result.messages?.[result.messages.length - 1]
-                  if (newMessage) {
-                    return {
-                      ...conv,
-                      lastMessage: {
-                        id: newMessage.id,
-                        content: newMessage.content,
-                        senderId: newMessage.senderId,
-                        createdAt: newMessage.createdAt,
-                        sender: newMessage.sender
-                      },
-                      lastMessageAt: newMessage.createdAt,
-                      unreadCount: newMessage.senderId !== userId ? conv.unreadCount + 1 : 0
-                    }
-                  }
-                }
-                return conv
-              })
-            )
-            
-            // Mark as read if message is from other user and conversation is active
-            if (result.messages && result.messages.length > 0) {
-              const latestMessage = result.messages[result.messages.length - 1]
-              if (latestMessage.senderId !== userId) {
-                markAsRead(selectedConversationId)
+        async (payload) => {
+          const inserted = payload.new as { id: string; senderId: string; conversationId: string } | null
+          if (!inserted) return
+
+          // Ignore messages we just sent (already optimistically added)
+          if (inserted.senderId === userId) {
+            return
+          }
+
+          const result = await getMessageDetails(inserted.id)
+          if (!result.success || !result.message || !result.conversation) {
+            return
+          }
+
+          const { message, conversation } = result
+
+          setConversations((prev) => {
+            const latestMessage = {
+              id: message.id,
+              content: message.content,
+              senderId: message.senderId,
+              createdAt: message.createdAt,
+              sender: message.sender
+            }
+
+            const existingIndex = prev.findIndex((conv) => conv.id === conversation.id)
+            const shouldIncrementUnread =
+              message.senderId !== userId &&
+              selectedConversationRef.current !== conversation.id
+
+            if (existingIndex === -1) {
+              const newConversation: Conversation = {
+                id: conversation.id,
+                otherUser: conversation.otherUser,
+                lastMessage: latestMessage,
+                lastMessageAt: conversation.lastMessageAt ?? message.createdAt,
+                unreadCount: shouldIncrementUnread ? 1 : 0,
+                createdAt: conversation.createdAt
+              }
+
+              return [newConversation, ...prev]
+            }
+
+            const existing = prev[existingIndex]
+
+            let unreadCount = existing.unreadCount
+            if (message.senderId !== userId) {
+              if (selectedConversationRef.current === conversation.id) {
+                unreadCount = 0
+              } else if (shouldIncrementUnread) {
+                unreadCount = existing.unreadCount + 1
               }
             }
+
+            const updated: Conversation = {
+              ...existing,
+              otherUser: existing.otherUser ?? conversation.otherUser,
+              lastMessage: latestMessage,
+              lastMessageAt: conversation.lastMessageAt ?? message.createdAt,
+              unreadCount
+            }
+
+            const updatedList = [...prev]
+            updatedList.splice(existingIndex, 1)
+            updatedList.unshift(updated)
+            return updatedList
+          })
+
+          if (selectedConversationRef.current === conversation.id) {
+            setMessages((prev) => [...prev, message])
+            void markAsRead(conversation.id)
           }
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.error('Error subscribing to messages channel')
+        }
+      })
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [selectedConversationId, userId])
+  }, [userId])
 
   const handleSendMessage = async () => {
     if (!selectedConversationId || !messageContent.trim() || isSending) return

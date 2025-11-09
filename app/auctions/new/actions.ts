@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
@@ -10,6 +10,7 @@ import {
   type CreateAuctionData 
 } from '@/lib/validations/auction'
 import { AuctionStatus } from '@prisma/client'
+import { AUCTIONS_LIST_TAG, AUCTIONS_RECENT_TAG } from '@/lib/auctions'
 
 export async function createAuction(formData: FormData) {
   try {
@@ -63,8 +64,9 @@ export async function createAuction(formData: FormData) {
       }
     })
 
-    // 6. Revalidate /auctions path
-    revalidatePath('/auctions')
+    // 6. Revalidate cached auctions data
+    revalidateTag(AUCTIONS_LIST_TAG, 'default')
+    revalidateTag(AUCTIONS_RECENT_TAG, 'default')
 
     // 7. Return success with serialized auction
     return { 

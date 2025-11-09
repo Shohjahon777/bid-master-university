@@ -1,11 +1,12 @@
 'use server'
 
 import { db } from '@/lib/db'
-import { createClient } from '@/lib/supabase-server'
+import { getSupabaseServerClient } from '@/lib/supabase-server'
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { sendWelcomeEmail } from '@/lib/email'
+import { env } from '@/lib/config/env'
 
 // Zod validation schema for registration
 const registerSchema = z.object({
@@ -44,11 +45,11 @@ export async function registerUser(formData: FormData) {
     const validatedData = registerSchema.parse(rawData)
 
     // 1. Create Supabase client for server-side
-    const supabase = await createClient()
+    const supabase = await getSupabaseServerClient()
 
     // 2. Create user in Supabase Auth
     // Try with the original email first
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    const baseUrl = env.baseUrl
     let { data: authData, error: authError } = await supabase.auth.signUp({
       email: validatedData.email,
       password: validatedData.password,

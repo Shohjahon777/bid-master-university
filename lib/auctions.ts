@@ -1,12 +1,46 @@
+import { unstable_cache } from 'next/cache'
 import { db } from '@/lib/db'
-import { AuctionWithRelations } from '@/types'
 import { AuctionStatus } from '@prisma/client'
+import { AuctionWithRelations, BidWithUser } from '@/types'
 
-export async function getRecentAuctions(limit: number = 6): Promise<any[]> {
+export const AUCTIONS_LIST_TAG = 'auctions:list'
+export const AUCTIONS_RECENT_TAG = 'auctions:recent'
+const AUCTION_DETAIL_TAG_PREFIX = 'auction:'
+
+export const getAuctionDetailTag = (id: string) =>
+  `${AUCTION_DETAIL_TAG_PREFIX}${id}`
+
+type SerializableBid = Omit<BidWithUser, 'amount' | 'createdAt'> & {
+  amount: number
+  createdAt: string
+}
+
+export type SerializableAuction = Omit<
+  AuctionWithRelations,
+  | 'startingPrice'
+  | 'currentPrice'
+  | 'buyNowPrice'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'startTime'
+  | 'endTime'
+  | 'bids'
+> & {
+  startingPrice: number
+  currentPrice: number
+  buyNowPrice: number | null
+  createdAt: string
+  updatedAt: string
+  startTime: string
+  endTime: string
+  bids: SerializableBid[]
+}
+
+async function fetchRecentAuctions(limit: number = 6): Promise<SerializableAuction[]> {
   try {
     const auctions = await db.auction.findMany({
       where: {
-        status: AuctionStatus.ACTIVE
+        status: AuctionStatus.ACTIVE,
       },
       include: {
         user: {
@@ -15,8 +49,8 @@ export async function getRecentAuctions(limit: number = 6): Promise<any[]> {
             name: true,
             avatar: true,
             university: true,
-            verified: true
-          }
+            verified: true,
+          },
         },
         bids: {
           orderBy: { createdAt: 'desc' },
@@ -27,25 +61,24 @@ export async function getRecentAuctions(limit: number = 6): Promise<any[]> {
                 id: true,
                 name: true,
                 avatar: true,
-                university: true
-              }
-            }
-          }
+                university: true,
+              },
+            },
+          },
         },
         _count: {
           select: {
-            bids: true
-          }
-        }
+            bids: true,
+          },
+        },
       },
       orderBy: {
-        createdAt: 'desc'
+        createdAt: 'desc',
       },
-      take: limit
+      take: limit,
     })
 
-    // Serialize Decimal and Date fields for client components
-    return auctions.map(auction => ({
+    return auctions.map<SerializableAuction>((auction) => ({
       ...auction,
       startingPrice: Number(auction.startingPrice),
       currentPrice: Number(auction.currentPrice),
@@ -54,11 +87,11 @@ export async function getRecentAuctions(limit: number = 6): Promise<any[]> {
       updatedAt: auction.updatedAt.toISOString(),
       startTime: auction.startTime.toISOString(),
       endTime: auction.endTime.toISOString(),
-      bids: auction.bids.map(bid => ({
+      bids: auction.bids.map<SerializableBid>((bid) => ({
         ...bid,
         amount: Number(bid.amount),
-        createdAt: bid.createdAt.toISOString()
-      }))
+        createdAt: bid.createdAt.toISOString(),
+      })),
     }))
   } catch (error) {
     console.error('Error fetching recent auctions:', error)
@@ -66,13 +99,11 @@ export async function getRecentAuctions(limit: number = 6): Promise<any[]> {
   }
 }
 
-export async function getAuctionById(id: string): Promise<any | null> {
+async function fetchAuctionById(id: string): Promise<SerializableAuction | null> {
   try {
-    // Check and end auction if expired (on-demand check for better UX with daily cron limitation)
     const { checkAndEndAuction } = await import('@/lib/scheduler')
     await checkAndEndAuction(id).catch((error) => {
       console.error('Error checking auction expiration:', error)
-      // Continue with fetching auction even if check fails
     })
 
     const auction = await db.auction.findUnique({
@@ -84,8 +115,8 @@ export async function getAuctionById(id: string): Promise<any | null> {
             name: true,
             avatar: true,
             university: true,
-            verified: true
-          }
+            verified: true,
+          },
         },
         bids: {
           orderBy: { createdAt: 'desc' },
@@ -95,22 +126,21 @@ export async function getAuctionById(id: string): Promise<any | null> {
                 id: true,
                 name: true,
                 avatar: true,
-                university: true
-              }
-            }
-          }
+                university: true,
+              },
+            },
+          },
         },
         _count: {
           select: {
-            bids: true
-          }
-        }
-      }
+            bids: true,
+          },
+        },
+      },
     })
 
     if (!auction) return null
 
-    // Serialize Decimal and Date fields for client components
     return {
       ...auction,
       startingPrice: Number(auction.startingPrice),
@@ -120,14 +150,36 @@ export async function getAuctionById(id: string): Promise<any | null> {
       updatedAt: auction.updatedAt.toISOString(),
       startTime: auction.startTime.toISOString(),
       endTime: auction.endTime.toISOString(),
-      bids: auction.bids.map(bid => ({
+      bids: auction.bids.map<SerializableBid>((bid) => ({
         ...bid,
         amount: Number(bid.amount),
-        createdAt: bid.createdAt.toISOString()
-      }))
+        createdAt: bid.createdAt.toISOString(),
+      })),
     }
   } catch (error) {
     console.error('Error fetching auction by ID:', error)
     return null
   }
 }
+
+const getRecentAuctionsCached = unstable_cache(
+  (limit: number = 6) => fetchRecentAuctions(limit),
+  ['auctions:recent'],
+  {
+    tags: [AUCTIONS_LIST_TAG, AUCTIONS_RECENT_TAG],
+    revalidate: 120,
+  },
+)
+
+export const getRecentAuctions = (limit: number = 6): Promise<SerializableAuction[]> =>
+  getRecentAuctionsCached(limit)
+
+export const getAuctionById = async (id: string): Promise<SerializableAuction | null> =>
+  unstable_cache(
+    () => fetchAuctionById(id),
+    ['auctions:detail', id],
+    {
+      tags: [AUCTIONS_LIST_TAG, getAuctionDetailTag(id)],
+      revalidate: 30,
+    },
+  )()

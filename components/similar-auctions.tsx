@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AuctionWithRelations } from '@/types'
+import type { SerializableAuction } from '@/lib/auctions'
 
 interface SimilarAuctionsProps {
   currentAuctionId: string
@@ -23,7 +24,9 @@ export async function SimilarAuctions({
   })
 
   // Filter out the current auction
-  const similarAuctions = (auctions as any[]).filter((auction: any) => auction.id !== currentAuctionId)
+  const similarAuctions = (auctions as (AuctionWithRelations | SerializableAuction)[]).filter(
+    (auction) => auction.id !== currentAuctionId,
+  )
 
   if (similarAuctions.length === 0) {
     return null
@@ -46,7 +49,7 @@ export async function SimilarAuctions({
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {similarAuctions.map((auction: AuctionWithRelations) => (
+          {similarAuctions.map((auction) => (
             <AuctionCard key={auction.id} auction={auction} />
           ))}
         </div>

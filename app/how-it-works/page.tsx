@@ -11,6 +11,9 @@ import {
   CheckCircle
 } from "lucide-react"
 
+export const runtime = 'edge'
+export const revalidate = 86400
+
 export default function HowItWorksPage() {
   const steps = [
     {

@@ -1,38 +1,38 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { cache } from 'react'
+import { env } from '@/lib/config/env'
 
-// Server-side Supabase client with cookies support
-export async function createClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing Supabase environment variables')
-  }
-
+export const getSupabaseServerClient = cache(async () => {
   const cookieStore = await cookies()
-  
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
+
+  return createServerClient(env.supabaseUrl, env.supabaseAnonKey, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value
+      getAll() {
+        return cookieStore.getAll().map((cookie) => ({
+          name: cookie.name,
+          value: cookie.value,
+        }))
       },
-      set(name: string, value: string, options: any) {
-        try {
-          cookieStore.set({ name, value, ...options })
-        } catch (error) {
-          // Ignore cookie setting errors in non-server contexts
-          console.warn('Could not set cookie:', error)
-        }
-      },
-      remove(name: string, options: any) {
-        try {
-          cookieStore.set({ name, value: '', ...options })
-        } catch (error) {
-          // Ignore cookie removal errors in non-server contexts
-          console.warn('Could not remove cookie:', error)
-        }
+      async setAll(cookiesToSet) {
+        const mutableCookies = await cookies()
+        cookiesToSet.forEach(({ name, value, options }) => {
+          try {
+            mutableCookies.set({
+              name,
+              value,
+              ...(options ?? {}),
+            })
+          } catch (error) {
+            console.warn('Could not set cookie:', error)
+          }
+        })
       },
     },
   })
+})
+
+// Backwards-compatible helper used across server actions
+export async function createClient() {
+  return getSupabaseServerClient()
 }

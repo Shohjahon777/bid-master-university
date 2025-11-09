@@ -1,12 +1,13 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidateTag } from 'next/cache'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 import { placeBidSchema, buyNowSchema } from '@/lib/validations/bid'
 import { AuctionStatus, NotificationType } from '@/types'
 import { isAuctionActive } from '@/lib/utils'
 import { sendBidNotification, sendOutbidNotification } from '@/lib/email'
+import { AUCTIONS_LIST_TAG, AUCTIONS_RECENT_TAG, getAuctionDetailTag } from '@/lib/auctions'
 
 // Helper function to create notifications
 async function createNotifications(tx: any, notifications: Array<{
@@ -165,9 +166,10 @@ export async function placeBid(auctionId: string, amount: number) {
       })
     }
 
-    // Revalidate the auction page
-    revalidatePath(`/auctions/${auctionId}`)
-    revalidatePath('/auctions')
+    // Revalidate cached auction data
+    revalidateTag(getAuctionDetailTag(auctionId), 'default')
+    revalidateTag(AUCTIONS_LIST_TAG, 'default')
+    revalidateTag(AUCTIONS_RECENT_TAG, 'default')
 
     // Serialize Decimal and Date fields
     return { 
@@ -306,9 +308,10 @@ export async function buyNow(auctionId: string) {
       return bid
     })
 
-    // Revalidate the auction page
-    revalidatePath(`/auctions/${auctionId}`)
-    revalidatePath('/auctions')
+    // Revalidate cached auction data
+    revalidateTag(getAuctionDetailTag(auctionId), 'default')
+    revalidateTag(AUCTIONS_LIST_TAG, 'default')
+    revalidateTag(AUCTIONS_RECENT_TAG, 'default')
 
     // Serialize Decimal and Date fields
     return { 
@@ -433,8 +436,9 @@ export async function handleAuctionEnding(auctionId: string) {
     }
 
     // Revalidate pages
-    revalidatePath(`/auctions/${auctionId}`)
-    revalidatePath('/auctions')
+    revalidateTag(getAuctionDetailTag(auctionId), 'default')
+    revalidateTag(AUCTIONS_LIST_TAG, 'default')
+    revalidateTag(AUCTIONS_RECENT_TAG, 'default')
 
     return { success: true }
   } catch (error) {

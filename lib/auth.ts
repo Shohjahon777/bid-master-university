@@ -1,5 +1,5 @@
 import { supabase, supabaseAdmin } from '@/lib/supabase'
-import { createClient } from '@/lib/supabase-server'
+import { getSupabaseServerClient } from '@/lib/supabase-server'
 import { db } from '@/lib/db'
 import { User } from '@/types'
 import { redirect } from 'next/navigation'
@@ -40,7 +40,7 @@ export interface AuthError {
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
     // Use server-side client with cookie support
-    const supabaseClient = await createClient()
+    const supabaseClient = await getSupabaseServerClient()
     
     // Get user from Supabase Auth
     const { data: { user: supabaseUser }, error: authError } = await supabaseClient.auth.getUser()

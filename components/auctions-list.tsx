@@ -4,10 +4,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { AuctionCard } from '@/components/auction-card'
 import { Button } from '@/components/ui/button'
 import { AuctionWithRelations } from '@/types'
+import type { SerializableAuction } from '@/lib/auctions'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 
 interface AuctionsListProps {
-  auctions: AuctionWithRelations[]
+  auctions: (AuctionWithRelations | SerializableAuction)[]
   pagination: {
     page: number
     limit: number

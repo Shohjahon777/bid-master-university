@@ -2,14 +2,12 @@ import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
-import { getAuctionById } from '@/lib/actions/auctions'
+import { getAuctionById } from '@/lib/auctions'
 import { generateAuctionMetadata, generateProductSchema } from '@/lib/metadata'
 import { ImageCarousel } from '@/components/image-carousel'
 import { SellerCard } from '@/components/seller-card'
 import { AuctionCountdown } from '@/components/auction-countdown'
 import { AuctionDetailSkeleton } from '@/components/skeletons/auction-detail-skeleton'
-import { isInWatchlist } from '@/lib/actions/watchlist'
-import { getCurrentUser } from '@/lib/auth'
 
 // Lazy load heavy components
 const BidForm = dynamic(() => import('@/components/bid-form').then(mod => ({ default: mod.BidForm })), {
@@ -50,6 +48,8 @@ import { AuctionWithRelations } from '@/types'
 import { ArrowLeft, Share2 } from 'lucide-react'
 import Link from 'next/link'
 
+export const revalidate = 30
+
 interface AuctionDetailPageProps {
   params: Promise<{
     id: string
@@ -88,18 +88,6 @@ export default async function AuctionDetailPage({ params }: AuctionDetailPagePro
   const isActive = isAuctionActive(auctionForUtils)
   const isEnded = isAuctionEnded(auctionForUtils)
   const statusText = getAuctionStatusText(auctionForUtils)
-  
-  // Check if auction is in watchlist (for authenticated users)
-  let inWatchlist = false
-  try {
-    const user = await getCurrentUser()
-    if (user) {
-      inWatchlist = await isInWatchlist(id)
-    }
-  } catch (error) {
-    // If not authenticated or error, default to false
-    inWatchlist = false
-  }
   
   // Generate structured data
   const productSchema = generateProductSchema(auction as any)
@@ -255,7 +243,6 @@ export default async function AuctionDetailPage({ params }: AuctionDetailPagePro
                 <div className="flex gap-2">
                   <WatchlistToggle 
                     auctionId={id}
-                    isInWatchlist={inWatchlist}
                     variant="outline"
                     size="sm"
                     className="flex-1"

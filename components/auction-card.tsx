@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { AuctionWithRelations, AuctionCategory, AuctionStatus } from '@/types'
+import type { SerializableAuction } from '@/lib/auctions'
 import { 
   formatCurrency, 
   getTimeRemaining, 
@@ -19,7 +20,7 @@ import {
 } from '@/lib/utils'
 
 interface AuctionCardProps {
-  auction: AuctionWithRelations
+  auction: AuctionWithRelations | SerializableAuction
   view?: 'grid' | 'list'
 }
 

@@ -1,10 +1,11 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 import { AuctionStatus } from '@prisma/client'
 import { getTimeRemaining, isAuctionActive, isAuctionEnded } from '@/lib/utils'
+import { AUCTIONS_LIST_TAG, AUCTIONS_RECENT_TAG, getAuctionDetailTag } from '@/lib/auctions'
 
 export interface WatchlistItem {
   id: string
@@ -68,7 +69,9 @@ export async function addToWatchlist(auctionId: string) {
     })
 
     revalidatePath('/dashboard/watchlist')
-    revalidatePath(`/auctions/${auctionId}`)
+    revalidateTag(getAuctionDetailTag(auctionId), 'default')
+    revalidateTag(AUCTIONS_LIST_TAG, 'default')
+    revalidateTag(AUCTIONS_RECENT_TAG, 'default')
 
     return { success: true }
   } catch (error) {
@@ -91,7 +94,9 @@ export async function removeFromWatchlist(auctionId: string) {
     })
 
     revalidatePath('/dashboard/watchlist')
-    revalidatePath(`/auctions/${auctionId}`)
+    revalidateTag(getAuctionDetailTag(auctionId), 'default')
+    revalidateTag(AUCTIONS_LIST_TAG, 'default')
+    revalidateTag(AUCTIONS_RECENT_TAG, 'default')
 
     return { success: true }
   } catch (error) {

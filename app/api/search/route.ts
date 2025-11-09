@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuctions } from '@/lib/actions/auctions'
+import { AUCTIONS_LIST_TAG, AUCTIONS_RECENT_TAG } from '@/lib/auctions'
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,11 +41,23 @@ export async function GET(request: NextRequest) {
     // Fetch auctions with filters
     const result = await getAuctions(filters)
 
-    return NextResponse.json({
-      success: true,
-      auctions: result.auctions,
-      pagination: result.pagination
-    })
+    const response = NextResponse.json(
+      {
+        success: true,
+        auctions: result.auctions,
+        pagination: result.pagination,
+      },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+        },
+      },
+    )
+    response.headers.set(
+      'x-next-cache-tags',
+      `${AUCTIONS_LIST_TAG},${AUCTIONS_RECENT_TAG}`,
+    )
+    return response
   } catch (error) {
     console.error('Error in search API:', error)
     return NextResponse.json(

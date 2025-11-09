@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuctionById } from '@/lib/actions/auctions'
+import { getAuctionById, AUCTIONS_LIST_TAG, getAuctionDetailTag } from '@/lib/auctions'
 
 export async function GET(
   request: NextRequest,
@@ -19,17 +19,18 @@ export async function GET(
     // Serialize Date objects to ISO strings for JSON response
     const serialized = {
       ...auction,
-      startTime: auction.startTime.toISOString(),
-      endTime: auction.endTime.toISOString(),
-      createdAt: auction.createdAt.toISOString(),
-      updatedAt: auction.updatedAt.toISOString(),
-      bids: auction.bids.map(bid => ({
-        ...bid,
-        createdAt: bid.createdAt.toISOString()
-      })),
       bidCount: auction._count?.bids || 0
     }
-    return NextResponse.json(serialized)
+    const response = NextResponse.json(serialized, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120',
+      },
+    })
+    response.headers.set(
+      'x-next-cache-tags',
+      `${AUCTIONS_LIST_TAG},${getAuctionDetailTag(id)}`,
+    )
+    return response
   } catch (error) {
     console.error('[API] Error fetching auction:', error)
     return NextResponse.json(

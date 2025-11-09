@@ -4,6 +4,8 @@ interface AuthLayoutProps {
   children: ReactNode
 }
 
+export const runtime = 'edge'
+
 export default function AuthLayout({ children }: AuthLayoutProps) {
   return (
     <div className="min-h-screen bg-background">

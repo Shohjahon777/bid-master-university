@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
@@ -11,6 +11,7 @@ import {
   calculateEndTime,
   type CreateAuctionData 
 } from '@/lib/validations/auction'
+import { AUCTIONS_LIST_TAG, AUCTIONS_RECENT_TAG, getAuctionDetailTag } from '@/lib/auctions'
 
 // Get auctions with filters
 export async function getAuctions(params: {
@@ -284,7 +285,8 @@ export async function createAuction(formData: FormData) {
       }
     })
 
-    revalidatePath('/auctions')
+    revalidateTag(AUCTIONS_LIST_TAG, 'default')
+    revalidateTag(AUCTIONS_RECENT_TAG, 'default')
     return { success: true, auction }
   } catch (error) {
     console.error('Error creating auction:', error)
@@ -502,7 +504,9 @@ export async function updateAuction(formData: FormData) {
     })
     
     revalidatePath('/dashboard/auctions')
-    revalidatePath(`/auctions/${auctionId}`)
+    revalidateTag(getAuctionDetailTag(auctionId), 'default')
+    revalidateTag(AUCTIONS_LIST_TAG, 'default')
+    revalidateTag(AUCTIONS_RECENT_TAG, 'default')
     
     return { 
       success: true, 

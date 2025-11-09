@@ -9,6 +9,8 @@ import { AuctionCard } from "@/components/auction-card";
 import { getRecentAuctions } from "@/lib/auctions";
 import { generateLocalBusinessSchema } from "@/lib/metadata";
 
+export const revalidate = 120;
+
 export const metadata: Metadata = {
   title: "Bid Master - University Auction Platform",
   description: "Internal university auction platform where students can list items, discover unique finds, and bid on exciting auctions within your campus community. Safe, verified, and built specifically for university communities.",

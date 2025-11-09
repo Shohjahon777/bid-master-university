@@ -10,17 +10,18 @@ import { BidNotification } from '@/components/emails/bid-notification'
 import { OutbidNotification } from '@/components/emails/outbid-notification'
 import { AuctionWonEmail } from '@/components/emails/auction-won-email'
 import { AuctionEndingEmail } from '@/components/emails/auction-ending-email'
+import { env } from '@/lib/config/env'
 
 // Initialize Resend client
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
+const resend = env.resendApiKey
+  ? new Resend(env.resendApiKey)
   : null
 
 // Email configuration
 // For Resend, use 'onboarding@resend.dev' for testing or a verified domain
 // You can verify a domain in Resend dashboard to use custom email
-const fromEmail = process.env.EMAIL_FROM || 'onboarding@resend.dev'
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+const fromEmail = env.emailFrom
+const baseUrl = env.baseUrl
 
 /**
  * Log email send attempt to database

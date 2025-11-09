@@ -98,11 +98,33 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
-    const role =
+    let isAdmin = false
+
+    const metadataRole =
       (user.app_metadata?.role as string | undefined)?.toUpperCase() ??
       (user.user_metadata?.role as string | undefined)?.toUpperCase()
 
-    if (role !== 'ADMIN') {
+    if (metadataRole === 'ADMIN') {
+      isAdmin = true
+    } else {
+      try {
+        const response = await fetch(new URL('/api/auth/role', request.url), {
+          headers: {
+            cookie: request.headers.get('cookie') ?? ''
+          },
+          cache: 'no-store'
+        })
+
+        if (response.ok) {
+          const payload = (await response.json()) as { role?: string | null }
+          isAdmin = payload.role === 'ADMIN'
+        }
+      } catch (error) {
+        console.error('Error verifying admin role from database:', error)
+      }
+    }
+
+    if (!isAdmin) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }
